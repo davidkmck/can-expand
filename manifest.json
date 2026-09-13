@@ -1,0 +1,18 @@
+{
+  "name": "Can-Expand PWA",
+  "short_name": "CanExpand",
+  "description": "Interactive sovereign territory alignment map for North America.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#aad3df",
+  "theme_color": "#1d3557",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

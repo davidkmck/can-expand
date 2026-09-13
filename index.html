@@ -31,8 +31,8 @@
       padding: 16px;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      min-width: 240px;
-      max-width: 300px;
+      min-width: 250px;
+      max-width: 320px;
       backdrop-filter: blur(4px);
     }
     .info-panel h2 {
@@ -61,24 +61,82 @@
     
     .action-btn {
       width: 100%;
-      padding: 10px;
+      padding: 9px;
       border: none;
       border-radius: 6px;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s ease;
+      margin-bottom: 8px;
+      transition: background 0.2s ease, opacity 0.2s ease;
+    }
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
     .btn-indep {
       background: #7b1fa2;
       color: white;
     }
-    .btn-indep:hover { background: #6a1b9a; }
+    .btn-indep:hover:not(:disabled) { background: #6a1b9a; }
     .btn-canada {
       background: #d32f2f;
       color: white;
     }
-    .btn-canada:hover { background: #c2185b; }
-    
+    .btn-canada:hover:not(:disabled) { background: #c2185b; }
+    .btn-us {
+      background: #1976d2;
+      color: white;
+    }
+    .btn-us:hover:not(:disabled) { background: #1565c0; }
+    .btn-mexico {
+      background: #2e7d32;
+      color: white;
+    }
+    .btn-mexico:hover:not(:disabled) { background: #1b5e20; }
+
+    /* Timeline & Replay Panel */
+    .timeline-panel {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      width: 300px;
+      backdrop-filter: blur(4px);
+    }
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .timeline-header h3 {
+      font-size: 0.95rem;
+      color: #333;
+    }
+    .btn-replay {
+      background: #2196f3;
+      color: white;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .btn-replay:hover:not(:disabled) { background: #1e88e5; }
+    .history-list {
+      max-height: 110px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+      color: #555;
+      list-style-type: disc;
+      padding-left: 18px;
+    }
+
     .legend {
       position: absolute;
       bottom: 20px;
@@ -108,11 +166,22 @@
 
   <div id="map"></div>
 
-  <!-- Selection Control Panel -->
+  <!-- Region Detail Panel -->
   <div class="info-panel" id="infoPanel">
     <h2 id="regionName">North America Map</h2>
-    <p id="regionDetails">Click on any US state or Canadian province to view options.</p>
+    <p id="regionDetails">Click on any US state, Canadian province, or Mexican state to manage alignment.</p>
     <div id="panelActions"></div>
+  </div>
+
+  <!-- History & Replay Panel -->
+  <div class="timeline-panel">
+    <div class="timeline-header">
+      <h3>History Log</h3>
+      <button class="btn-replay" id="replayBtn" onclick="animateHistory()">Replay Changes</button>
+    </div>
+    <ul class="history-list" id="historyList">
+      <li><em>No changes recorded yet.</em></li>
+    </ul>
   </div>
 
   <!-- Country Legend -->
@@ -123,16 +192,20 @@
     <div class="legend-item"><div class="color-box" style="background: #9c27b0;"></div> Independent State</div>
   </div>
 
-  <!-- Leaflet JS -->
+  <!-- Leaflet & Turf.js -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
   
   <script>
-    // State Tracking for Dynamic Changes
-    const stateStatus = {}; // Stores custom status: 'INDEPENDENT' or 'CANADA'
+    // State Tracking
+    const stateStatus = {}; 
+    const historyLog = [];
     let selectedFeature = null;
     let geojsonLayer = null;
+    let rawFeatures = [];
+    let isReplaying = false;
 
-    // Map Setup initialized on North America center
+    // Map Setup
     const map = L.map('map', {
       center: [48.0, -96.0],
       zoom: 4,
@@ -140,29 +213,27 @@
       maxZoom: 7
     });
 
-    // Base Style Function based on Sovereign Status
-    function getFeatureColor(feature) {
-      const id = feature.properties.iso_3166_2 || feature.properties.name;
-      const customStatus = stateStatus[id];
+    function getFeatureId(feature) {
+      return feature.properties.iso_3166_2 || feature.properties.name;
+    }
 
-      if (customStatus === 'INDEPENDENT') {
-        // Distinct palette colors for independent states
+    function getCurrentCountry(feature) {
+      const id = getFeatureId(feature);
+      return stateStatus[id] || feature.properties.admin;
+    }
+
+    function getFeatureColor(feature) {
+      const current = getCurrentCountry(feature);
+
+      if (current === 'INDEPENDENT') {
+        const id = getFeatureId(feature);
         const colors = ['#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2'];
         const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         return colors[hash % colors.length];
       }
-      
-      if (customStatus === 'CANADA' || feature.properties.admin === 'Canada') {
-        return '#e63946'; // Red
-      }
-      
-      if (feature.properties.admin === 'United States of America') {
-        return '#1d3557'; // Deep Blue
-      }
-      
-      if (feature.properties.admin === 'Mexico') {
-        return '#2a9d8f'; // Teal Green
-      }
+      if (current === 'Canada') return '#e63946';
+      if (current === 'United States of America') return '#1d3557';
+      if (current === 'Mexico') return '#2a9d8f';
 
       return '#457b9d';
     }
@@ -191,11 +262,37 @@
       geojsonLayer.resetStyle(e.target);
     }
 
-    function updatePanel(properties) {
+    // Determine neighboring sovereign nations dynamically using spatial intersection (Turf.js)
+    function getNeighboringCountries(targetFeature) {
+      const neighbors = new Set();
+      const targetPoly = turf.feature(targetFeature.geometry);
+
+      rawFeatures.forEach(feat => {
+        if (getFeatureId(feat) === getFeatureId(targetFeature)) return;
+        
+        try {
+          const checkPoly = turf.feature(feat.geometry);
+          if (turf.booleanIntersect(targetPoly, checkPoly)) {
+            const country = getCurrentCountry(feat);
+            if (country !== 'INDEPENDENT') {
+              neighbors.add(country);
+            }
+          }
+        } catch(err) {
+          // Fallback for minor geometry edge-cases
+        }
+      });
+
+      return Array.from(neighbors);
+    }
+
+    function updatePanel(feature) {
+      if (!feature) return;
+      
+      const properties = feature.properties;
+      const id = getFeatureId(feature);
       const name = properties.name;
-      const id = properties.iso_3166_2 || name;
-      const currentCountry = properties.admin;
-      const status = stateStatus[id];
+      const currentCountry = getCurrentCountry(feature);
 
       const regionNameEl = document.getElementById('regionName');
       const regionDetailsEl = document.getElementById('regionDetails');
@@ -204,40 +301,108 @@
       regionNameEl.innerText = name;
       actionsEl.innerHTML = '';
 
-      if (currentCountry === 'United States of America') {
-        if (!status) {
-          regionDetailsEl.innerHTML = '<span class="status-badge status-us">US State</span>';
-          const btn = document.createElement('button');
-          btn.className = 'action-btn btn-indep';
-          btn.innerText = 'Declare Independence';
-          btn.onclick = () => setStatus(id, 'INDEPENDENT');
-          actionsEl.appendChild(btn);
-        } else if (status === 'INDEPENDENT') {
-          regionDetailsEl.innerHTML = '<span class="status-badge status-indep">Independent Nation</span>';
-          const btn = document.createElement('button');
-          btn.className = 'action-btn btn-canada';
-          btn.innerText = 'Join Confederation (Canada)';
-          btn.onclick = () => setStatus(id, 'CANADA');
-          actionsEl.appendChild(btn);
-        } else if (status === 'CANADA') {
-          regionDetailsEl.innerHTML = '<span class="status-badge status-canada">Canadian Province</span>';
-          actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">Joined Canadian Confederation</p>';
+      if (currentCountry === 'INDEPENDENT') {
+        regionDetailsEl.innerHTML = '<span class="status-badge status-indep">Independent Nation</span>';
+        
+        const neighbors = getNeighboringCountries(feature);
+        if (neighbors.length > 0) {
+          neighbors.forEach(country => {
+            const btn = document.createElement('button');
+            btn.disabled = isReplaying;
+            btn.className = 'action-btn ' + (
+              country === 'Canada' ? 'btn-canada' : 
+              country === 'United States of America' ? 'btn-us' : 'btn-mexico'
+            );
+            btn.innerText = `Join ${country === 'United States of America' ? 'USA' : country}`;
+            btn.onclick = () => changeStatus(feature, country);
+            actionsEl.appendChild(btn);
+          });
+        } else {
+          const p = document.createElement('p');
+          p.style.fontSize = '0.8rem';
+          p.style.color = '#888';
+          p.innerText = 'No adjacent nations to join.';
+          actionsEl.appendChild(p);
         }
-      } else if (currentCountry === 'Canada') {
-        regionDetailsEl.innerHTML = '<span class="status-badge status-canada">Canadian Province</span>';
-      } else if (currentCountry === 'Mexico') {
-        regionDetailsEl.innerHTML = '<span class="status-badge status-mexico">Mexican State</span>';
       } else {
-        regionDetailsEl.innerText = currentCountry;
+        const badgeClass = currentCountry === 'Canada' ? 'status-canada' : 
+                           currentCountry === 'United States of America' ? 'status-us' : 'status-mexico';
+        
+        regionDetailsEl.innerHTML = `<span class="status-badge ${badgeClass}">${currentCountry}</span>`;
+        
+        const btn = document.createElement('button');
+        btn.disabled = isReplaying;
+        btn.className = 'action-btn btn-indep';
+        btn.innerText = 'Declare Independence';
+        btn.onclick = () => changeStatus(feature, 'INDEPENDENT');
+        actionsEl.appendChild(btn);
       }
     }
 
-    function setStatus(id, newStatus) {
-      stateStatus[id] = newStatus;
+    function changeStatus(feature, newCountry, recordHistory = true) {
+      const id = getFeatureId(feature);
+      const prevCountry = getCurrentCountry(feature);
+      
+      stateStatus[id] = newCountry;
       geojsonLayer.setStyle(style);
-      if (selectedFeature) {
-        updatePanel(selectedFeature.properties);
+
+      if (recordHistory) {
+        historyLog.push({
+          id: id,
+          name: feature.properties.name,
+          from: prevCountry,
+          to: newCountry
+        });
+        renderHistoryUI();
       }
+
+      if (selectedFeature && getFeatureId(selectedFeature) === id) {
+        updatePanel(feature);
+      }
+    }
+
+    function renderHistoryUI() {
+      const listEl = document.getElementById('historyList');
+      if (historyLog.length === 0) {
+        listEl.innerHTML = '<li><em>No changes recorded yet.</em></li>';
+        return;
+      }
+      
+      listEl.innerHTML = historyLog.map(item => {
+        const targetName = item.to === 'United States of America' ? 'USA' : item.to;
+        return `<li><strong>${item.name}</strong>: ${item.from} → ${targetName}</li>`;
+      }).join('');
+      
+      listEl.scrollTop = listEl.scrollHeight;
+    }
+
+    function animateHistory() {
+      if (historyLog.length === 0 || isReplaying) return;
+
+      isReplaying = true;
+      document.getElementById('replayBtn').disabled = true;
+
+      // Reset all to initial state
+      Object.keys(stateStatus).forEach(key => delete stateStatus[key]);
+      geojsonLayer.setStyle(style);
+
+      let step = 0;
+      const interval = setInterval(() => {
+        if (step >= historyLog.length) {
+          clearInterval(interval);
+          isReplaying = false;
+          document.getElementById('replayBtn').disabled = false;
+          if (selectedFeature) updatePanel(selectedFeature);
+          return;
+        }
+
+        const entry = historyLog[step];
+        const feat = rawFeatures.find(f => getFeatureId(f) === entry.id);
+        if (feat) {
+          changeStatus(feat, entry.to, false);
+        }
+        step++;
+      }, 1000);
     }
 
     function onEachFeature(feature, layer) {
@@ -246,21 +411,20 @@
         mouseout: resetHighlight,
         click: (e) => {
           selectedFeature = feature;
-          updatePanel(feature.properties);
+          updatePanel(feature);
         }
       });
     }
 
-    // Load GeoJSON data for North American States/Provinces
+    // Load GeoJSON Boundaries
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
       .then(res => res.json())
       .then(data => {
-        // Filter for US, Canada, Mexico features
-        const naFeatures = data.features.filter(f => 
+        rawFeatures = data.features.filter(f => 
           ['United States of America', 'Canada', 'Mexico'].includes(f.properties.admin)
         );
 
-        geojsonLayer = L.geoJSON(naFeatures, {
+        geojsonLayer = L.geoJSON(rawFeatures, {
           style: style,
           onEachFeature: onEachFeature
         }).addTo(map);

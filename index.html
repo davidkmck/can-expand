@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Can-Expand PWA</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body, #map {
+      height: 100%;
+      width: 100vw;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #aad3df;
+    }
+    
+    /* Control Panel Styling */
+    .info-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      min-width: 240px;
+      max-width: 300px;
+      backdrop-filter: blur(4px);
+    }
+    .info-panel h2 {
+      font-size: 1.1rem;
+      margin-bottom: 4px;
+      color: #1a1a1a;
+    }
+    .info-panel p {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 12px;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .status-us { background: #e3f2fd; color: #0d47a1; }
+    .status-canada { background: #ffebee; color: #c62828; }
+    .status-indep { background: #f3e5f5; color: #4a148c; }
+    .status-mexico { background: #e8f5e9; color: #1b5e20; }
+    
+    .action-btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .btn-indep {
+      background: #7b1fa2;
+      color: white;
+    }
+    .btn-indep:hover { background: #6a1b9a; }
+    .btn-canada {
+      background: #d32f2f;
+      color: white;
+    }
+    .btn-canada:hover { background: #c2185b; }
+    
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .legend-item:last-child { margin-bottom: 0; }
+    .color-box {
+      width: 14px;
+      height: 14px;
+      margin-right: 8px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="map"></div>
+
+  <!-- Selection Control Panel -->
+  <div class="info-panel" id="infoPanel">
+    <h2 id="regionName">North America Map</h2>
+    <p id="regionDetails">Click on any US state or Canadian province to view options.</p>
+    <div id="panelActions"></div>
+  </div>
+
+  <!-- Country Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="color-box" style="background: #e63946;"></div> Canada</div>
+    <div class="legend-item"><div class="color-box" style="background: #1d3557;"></div> United States</div>
+    <div class="legend-item"><div class="color-box" style="background: #2a9d8f;"></div> Mexico</div>
+    <div class="legend-item"><div class="color-box" style="background: #9c27b0;"></div> Independent State</div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <script>
+    // State Tracking for Dynamic Changes
+    const stateStatus = {}; // Stores custom status: 'INDEPENDENT' or 'CANADA'
+    let selectedFeature = null;
+    let geojsonLayer = null;
+
+    // Map Setup initialized on North America center
+    const map = L.map('map', {
+      center: [48.0, -96.0],
+      zoom: 4,
+      minZoom: 3,
+      maxZoom: 7
+    });
+
+    // Base Style Function based on Sovereign Status
+    function getFeatureColor(feature) {
+      const id = feature.properties.iso_3166_2 || feature.properties.name;
+      const customStatus = stateStatus[id];
+
+      if (customStatus === 'INDEPENDENT') {
+        // Distinct palette colors for independent states
+        const colors = ['#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2'];
+        const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return colors[hash % colors.length];
+      }
+      
+      if (customStatus === 'CANADA' || feature.properties.admin === 'Canada') {
+        return '#e63946'; // Red
+      }
+      
+      if (feature.properties.admin === 'United States of America') {
+        return '#1d3557'; // Deep Blue
+      }
+      
+      if (feature.properties.admin === 'Mexico') {
+        return '#2a9d8f'; // Teal Green
+      }
+
+      return '#457b9d';
+    }
+
+    function style(feature) {
+      return {
+        fillColor: getFeatureColor(feature),
+        weight: 1.5,
+        opacity: 1,
+        color: '#ffffff',
+        fillOpacity: 0.75
+      };
+    }
+
+    function highlightFeature(e) {
+      const layer = e.target;
+      layer.setStyle({
+        weight: 3,
+        color: '#ffb703',
+        fillOpacity: 0.9
+      });
+      layer.bringToFront();
+    }
+
+    function resetHighlight(e) {
+      geojsonLayer.resetStyle(e.target);
+    }
+
+    function updatePanel(properties) {
+      const name = properties.name;
+      const id = properties.iso_3166_2 || name;
+      const currentCountry = properties.admin;
+      const status = stateStatus[id];
+
+      const regionNameEl = document.getElementById('regionName');
+      const regionDetailsEl = document.getElementById('regionDetails');
+      const actionsEl = document.getElementById('panelActions');
+
+      regionNameEl.innerText = name;
+      actionsEl.innerHTML = '';
+
+      if (currentCountry === 'United States of America') {
+        if (!status) {
+          regionDetailsEl.innerHTML = '<span class="status-badge status-us">US State</span>';
+          const btn = document.createElement('button');
+          btn.className = 'action-btn btn-indep';
+          btn.innerText = 'Declare Independence';
+          btn.onclick = () => setStatus(id, 'INDEPENDENT');
+          actionsEl.appendChild(btn);
+        } else if (status === 'INDEPENDENT') {
+          regionDetailsEl.innerHTML = '<span class="status-badge status-indep">Independent Nation</span>';
+          const btn = document.createElement('button');
+          btn.className = 'action-btn btn-canada';
+          btn.innerText = 'Join Confederation (Canada)';
+          btn.onclick = () => setStatus(id, 'CANADA');
+          actionsEl.appendChild(btn);
+        } else if (status === 'CANADA') {
+          regionDetailsEl.innerHTML = '<span class="status-badge status-canada">Canadian Province</span>';
+          actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">Joined Canadian Confederation</p>';
+        }
+      } else if (currentCountry === 'Canada') {
+        regionDetailsEl.innerHTML = '<span class="status-badge status-canada">Canadian Province</span>';
+      } else if (currentCountry === 'Mexico') {
+        regionDetailsEl.innerHTML = '<span class="status-badge status-mexico">Mexican State</span>';
+      } else {
+        regionDetailsEl.innerText = currentCountry;
+      }
+    }
+
+    function setStatus(id, newStatus) {
+      stateStatus[id] = newStatus;
+      geojsonLayer.setStyle(style);
+      if (selectedFeature) {
+        updatePanel(selectedFeature.properties);
+      }
+    }
+
+    function onEachFeature(feature, layer) {
+      layer.on({
+        mouseover: highlightFeature,
+        mouseout: resetHighlight,
+        click: (e) => {
+          selectedFeature = feature;
+          updatePanel(feature.properties);
+        }
+      });
+    }
+
+    // Load GeoJSON data for North American States/Provinces
+    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
+      .then(res => res.json())
+      .then(data => {
+        // Filter for US, Canada, Mexico features
+        const naFeatures = data.features.filter(f => 
+          ['United States of America', 'Canada', 'Mexico'].includes(f.properties.admin)
+        );
+
+        geojsonLayer = L.geoJSON(naFeatures, {
+          style: style,
+          onEachFeature: onEachFeature
+        }).addTo(map);
+      })
+      .catch(err => {
+        document.getElementById('regionDetails').innerText = 'Failed to load spatial boundaries data.';
+      });
+  </script>
+</body>
+</html>

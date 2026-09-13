@@ -202,6 +202,7 @@
   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
   
   <script>
+    // State Tracking
     const stateStatus = {}; 
     const historyLog = [];
     let selectedFeature = null;
@@ -216,42 +217,45 @@
       maxZoom: 7
     });
 
+    // Color palette for distinct independent nations
+    const INDEPENDENT_PALETTE = [
+      '#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2', 
+      '#6a1b9a', '#4a148c', '#d81b60', '#c2185b', 
+      '#ad1457', '#5e35b1', '#3f51b5', '#673ab7'
+    ];
+
     function getFeatureId(feature) {
       return feature.properties.iso_3166_2 || feature.properties.name;
     }
 
-    function getCurrentCountry(feature) {
+    // Returns active country details object for a given feature
+    function getCountryData(feature) {
       const id = getFeatureId(feature);
-      return stateStatus[id] || feature.properties.admin;
+      if (stateStatus[id]) {
+        return stateStatus[id];
+      }
+      return {
+        type: 'SOVEREIGN',
+        key: feature.properties.admin,
+        name: feature.properties.admin
+      };
     }
 
-// Expanded dynamic palette for distinct independent state styling
-const INDEPENDENT_PALETTE = [
-  '#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2', 
-  '#6a1b9a', '#4a148c', '#d81b60', '#c2185b', 
-  '#ad1457', '#8e24aa', '#5e35b1', '#3f51b5'
-];
+    function getFeatureColor(feature) {
+      const country = getCountryData(feature);
 
-function getFeatureColor(feature) {
-  const current = getCurrentCountry(feature);
+      if (country.type === 'INDEPENDENT') {
+        const hash = country.key.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0);
+        const colorIndex = Math.abs(hash) % INDEPENDENT_PALETTE.length;
+        return INDEPENDENT_PALETTE[colorIndex];
+      }
 
-  if (current.startsWith('INDEPENDENT')) {
-    // If it joined another independent state, use that target's color; otherwise use its own ID
-    const entityId = current.includes(':') ? current.split(':')[1] : getFeatureId(feature);
-    
-    // Hash the entity identifier to ensure different independent states get distinct colors
-    const hash = entityId.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0);
-    const colorIndex = Math.abs(hash) % INDEPENDENT_PALETTE.length;
-    
-    return INDEPENDENT_PALETTE[colorIndex];
-  }
+      if (country.key === 'Canada') return '#e63946';
+      if (country.key === 'United States of America') return '#1d3557';
+      if (country.key === 'Mexico') return '#2a9d8f';
 
-  if (current === 'Canada') return '#e63946';
-  if (current === 'United States of America') return '#1d3557';
-  if (current === 'Mexico') return '#2a9d8f';
-
-  return '#457b9d';
-}
+      return '#457b9d';
+    }
 
     function style(feature) {
       return {
@@ -277,51 +281,43 @@ function getFeatureColor(feature) {
       geojsonLayer.resetStyle(e.target);
     }
 
-    // Dynamic adjacency check using Turf.js centroid proximity & bounding boxes
-function getNeighboringEntities(targetFeature) {
-  const neighbors = new Map();
-  const targetId = getFeatureId(targetFeature);
-  const targetBbox = turf.bbox(targetFeature);
-  const targetCenter = turf.centroid(targetFeature);
+    // Scans neighbor features via bounding box + centroid proximity
+    function getNeighboringEntities(targetFeature) {
+      const neighbors = new Map();
+      const targetId = getFeatureId(targetFeature);
+      const targetBbox = turf.bbox(targetFeature);
+      const targetCenter = turf.centroid(targetFeature);
+      const currentCountry = getCountryData(targetFeature);
 
-  rawFeatures.forEach(feat => {
-    const featId = getFeatureId(feat);
-    if (featId === targetId) return;
+      rawFeatures.forEach(feat => {
+        const featId = getFeatureId(feat);
+        if (featId === targetId) return;
 
-    try {
-      const featBbox = turf.bbox(feat);
-      
-      // Bounding box overlap test with a slight threshold
-      const bboxOverlap = !(
-        targetBbox[0] > featBbox[2] + 0.5 ||
-        targetBbox[2] < featBbox[0] - 0.5 ||
-        targetBbox[1] > featBbox[3] + 0.5 ||
-        targetBbox[3] < featBbox[1] - 0.5
-      );
+        try {
+          const featBbox = turf.bbox(feat);
+          const bboxOverlap = !(
+            targetBbox[0] > featBbox[2] + 0.5 ||
+            targetBbox[2] < featBbox[0] - 0.5 ||
+            targetBbox[1] > featBbox[3] + 0.5 ||
+            targetBbox[3] < featBbox[1] - 0.5
+          );
 
-      if (bboxOverlap) {
-        const featCenter = turf.centroid(feat);
-        const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
+          if (bboxOverlap) {
+            const featCenter = turf.centroid(feat);
+            const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
 
-        // Maximum centroid distance threshold for state/province border adjacency (~1200 km)
-        if (dist < 1200) {
-          const countryStatus = getCurrentCountry(feat);
-          if (countryStatus.startsWith('INDEPENDENT')) {
-            neighbors.set(`INDEPENDENT:${featId}`, feat.properties.name);
-          } else {
-            neighbors.set(countryStatus, countryStatus);
+            if (dist < 1200) {
+              const neighborCountry = getCountryData(feat);
+              if (neighborCountry.key !== currentCountry.key) {
+                neighbors.set(neighborCountry.key, neighborCountry);
+              }
+            }
           }
-        }
-      }
-    } catch (e) {
-      // Fallback ignore
-    }
-  });
+        } catch (e) {}
+      });
 
-  return neighbors;
-}
-    
-  
+      return Array.from(neighbors.values());
+    }
 
     function updatePanel(feature) {
       if (!feature) return;
@@ -329,7 +325,7 @@ function getNeighboringEntities(targetFeature) {
       const properties = feature.properties;
       const id = getFeatureId(feature);
       const name = properties.name;
-      const currentCountry = getCurrentCountry(feature);
+      const country = getCountryData(feature);
 
       const regionNameEl = document.getElementById('regionName');
       const regionDetailsEl = document.getElementById('regionDetails');
@@ -338,77 +334,68 @@ function getNeighboringEntities(targetFeature) {
       regionNameEl.innerText = name;
       actionsEl.innerHTML = '';
 
-      if (currentCountry.startsWith('INDEPENDENT')) {
-        regionDetailsEl.innerHTML = '<span class="status-badge status-indep">Independent Nation</span>';
+      if (country.type === 'INDEPENDENT') {
+        regionDetailsEl.innerHTML = `<span class="status-badge status-indep">${country.name}</span>`;
         
-        const neighborsMap = getNeighboringEntities(feature);
-        if (neighborsMap.size > 0) {
-          neighborsMap.forEach((displayName, key) => {
+        const neighbors = getNeighboringEntities(feature);
+        if (neighbors.length > 0) {
+          neighbors.forEach(targetCountry => {
             const btn = document.createElement('button');
             btn.disabled = isReplaying;
 
-            if (key.startsWith('INDEPENDENT:')) {
+            if (targetCountry.type === 'INDEPENDENT') {
               btn.className = 'action-btn btn-join-indep';
-              btn.innerText = `Join ${displayName}`;
-              btn.onclick = () => changeStatus(feature, key);
+              btn.innerText = `Join ${targetCountry.name}`;
+              btn.onclick = () => changeStatus(feature, targetCountry);
             } else {
               btn.className = 'action-btn ' + (
-                key === 'Canada' ? 'btn-canada' : 
-                key === 'United States of America' ? 'btn-us' : 'btn-mexico'
+                targetCountry.key === 'Canada' ? 'btn-canada' : 
+                targetCountry.key === 'United States of America' ? 'btn-us' : 'btn-mexico'
               );
-              btn.innerText = `Join ${key === 'United States of America' ? 'USA' : key}`;
-              btn.onclick = () => changeStatus(feature, key);
+              btn.innerText = `Join ${targetCountry.key === 'United States of America' ? 'USA' : targetCountry.key}`;
+              btn.onclick = () => changeStatus(feature, targetCountry);
             }
             actionsEl.appendChild(btn);
           });
         } else {
-          const p = document.createElement('p');
-          p.style.fontSize = '0.8rem';
-          p.style.color = '#888';
-          p.innerText = 'No adjacent nations to join.';
-          actionsEl.appendChild(p);
+          actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
         }
       } else {
-        const badgeClass = currentCountry === 'Canada' ? 'status-canada' : 
-                           currentCountry === 'United States of America' ? 'status-us' : 'status-mexico';
-        
-        const displayStatus = currentCountry.startsWith('INDEPENDENT:') 
-          ? 'Part of ' + currentCountry.split(':')[1] 
-          : currentCountry;
+        const badgeClass = country.key === 'Canada' ? 'status-canada' : 
+                           country.key === 'United States of America' ? 'status-us' : 'status-mexico';
 
-        regionDetailsEl.innerHTML = `<span class="status-badge ${badgeClass}">${displayStatus}</span>`;
+        regionDetailsEl.innerHTML = `<span class="status-badge ${badgeClass}">${country.name}</span>`;
         
         const btn = document.createElement('button');
         btn.disabled = isReplaying;
         btn.className = 'action-btn btn-indep';
         btn.innerText = 'Declare Independence';
-        btn.onclick = () => changeStatus(feature, `INDEPENDENT:${id}`);
+        btn.onclick = () => {
+          const indepCountry = {
+            type: 'INDEPENDENT',
+            key: `INDEP:${id}`,
+            name: name
+          };
+          changeStatus(feature, indepCountry);
+        };
         actionsEl.appendChild(btn);
       }
     }
 
-    function changeStatus(feature, newCountry, recordHistory = true) {
+    function changeStatus(feature, targetCountry, recordHistory = true) {
       const id = getFeatureId(feature);
-      const prevCountry = getCurrentCountry(feature);
+      const prevCountry = getCountryData(feature);
       
-      stateStatus[id] = newCountry;
+      stateStatus[id] = targetCountry;
       geojsonLayer.setStyle(style);
 
       if (recordHistory) {
-        let labelTo = newCountry;
-        if (newCountry.startsWith('INDEPENDENT:')) {
-          const targetId = newCountry.split(':')[1];
-          const targetFeat = rawFeatures.find(f => getFeatureId(f) === targetId);
-          labelTo = targetFeat ? targetFeat.properties.name : 'Independent Nation';
-        } else if (newCountry === 'United States of America') {
-          labelTo = 'USA';
-        }
-
         historyLog.push({
           id: id,
           name: feature.properties.name,
-          from: prevCountry.startsWith('INDEPENDENT') ? 'Independent' : prevCountry,
-          to: labelTo
+          from: prevCountry.name,
+          to: targetCountry.name === 'United States of America' ? 'USA' : targetCountry.name,
+          targetCountryObj: targetCountry
         });
         renderHistoryUI();
       }
@@ -454,7 +441,7 @@ function getNeighboringEntities(targetFeature) {
         const entry = historyLog[step];
         const feat = rawFeatures.find(f => getFeatureId(f) === entry.id);
         if (feat) {
-          changeStatus(feat, entry.to === 'USA' ? 'United States of America' : entry.to, false);
+          changeStatus(feat, entry.targetCountryObj, false);
         }
         step++;
       }, 1000);

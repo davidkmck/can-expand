@@ -265,42 +265,51 @@
       geojsonLayer.resetStyle(e.target);
     }
 
-    // Dynamic adjacency search including standard nations and independent entities
-    function getNeighboringEntities(targetFeature) {
-      const neighbors = new Map();
-      const targetId = getFeatureId(targetFeature);
+    // Dynamic adjacency check using Turf.js centroid proximity & bounding boxes
+function getNeighboringEntities(targetFeature) {
+  const neighbors = new Map();
+  const targetId = getFeatureId(targetFeature);
+  const targetBbox = turf.bbox(targetFeature);
+  const targetCenter = turf.centroid(targetFeature);
+
+  rawFeatures.forEach(feat => {
+    const featId = getFeatureId(feat);
+    if (featId === targetId) return;
+
+    try {
+      const featBbox = turf.bbox(feat);
       
-      // Buffer slightly to capture exact border touches across GeoJSON polygon boundaries
-      let bufferedTarget;
-      try {
-        bufferedTarget = turf.buffer(targetFeature, 2, { units: 'kilometers' });
-      } catch (err) {
-        bufferedTarget = targetFeature;
-      }
+      // Bounding box overlap test with a slight threshold
+      const bboxOverlap = !(
+        targetBbox[0] > featBbox[2] + 0.5 ||
+        targetBbox[2] < featBbox[0] - 0.5 ||
+        targetBbox[1] > featBbox[3] + 0.5 ||
+        targetBbox[3] < featBbox[1] - 0.5
+      );
 
-      rawFeatures.forEach(feat => {
-        const featId = getFeatureId(feat);
-        if (featId === targetId) return;
+      if (bboxOverlap) {
+        const featCenter = turf.centroid(feat);
+        const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
 
-        try {
-          const touches = turf.booleanTouches(targetFeature, feat);
-          const intersects = turf.intersect(bufferedTarget, feat);
-          
-          if (touches || intersects) {
-            const countryStatus = getCurrentCountry(feat);
-            if (countryStatus.startsWith('INDEPENDENT')) {
-              neighbors.set(`INDEPENDENT:${featId}`, feat.properties.name);
-            } else {
-              neighbors.set(countryStatus, countryStatus);
-            }
+        // Maximum centroid distance threshold for state/province border adjacency (~1200 km)
+        if (dist < 1200) {
+          const countryStatus = getCurrentCountry(feat);
+          if (countryStatus.startsWith('INDEPENDENT')) {
+            neighbors.set(`INDEPENDENT:${featId}`, feat.properties.name);
+          } else {
+            neighbors.set(countryStatus, countryStatus);
           }
-        } catch (e) {
-          // Fallback handling for topology edge cases
         }
-      });
-
-      return neighbors;
+      }
+    } catch (e) {
+      // Fallback ignore
     }
+  });
+
+  return neighbors;
+}
+    
+  
 
     function updatePanel(feature) {
       if (!feature) return;

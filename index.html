@@ -225,21 +225,33 @@
       return stateStatus[id] || feature.properties.admin;
     }
 
-    function getFeatureColor(feature) {
-      const current = getCurrentCountry(feature);
+// Expanded dynamic palette for distinct independent state styling
+const INDEPENDENT_PALETTE = [
+  '#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2', 
+  '#6a1b9a', '#4a148c', '#d81b60', '#c2185b', 
+  '#ad1457', '#8e24aa', '#5e35b1', '#3f51b5'
+];
 
-      if (current.startsWith('INDEPENDENT')) {
-        const id = getFeatureId(feature);
-        const colors = ['#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2'];
-        const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        return colors[hash % colors.length];
-      }
-      if (current === 'Canada') return '#e63946';
-      if (current === 'United States of America') return '#1d3557';
-      if (current === 'Mexico') return '#2a9d8f';
+function getFeatureColor(feature) {
+  const current = getCurrentCountry(feature);
 
-      return '#457b9d';
-    }
+  if (current.startsWith('INDEPENDENT')) {
+    // If it joined another independent state, use that target's color; otherwise use its own ID
+    const entityId = current.includes(':') ? current.split(':')[1] : getFeatureId(feature);
+    
+    // Hash the entity identifier to ensure different independent states get distinct colors
+    const hash = entityId.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0);
+    const colorIndex = Math.abs(hash) % INDEPENDENT_PALETTE.length;
+    
+    return INDEPENDENT_PALETTE[colorIndex];
+  }
+
+  if (current === 'Canada') return '#e63946';
+  if (current === 'United States of America') return '#1d3557';
+  if (current === 'Mexico') return '#2a9d8f';
+
+  return '#457b9d';
+}
 
     function style(feature) {
       return {

@@ -341,9 +341,23 @@
             btn.onclick = () => changeStatus(feature, targetCountry);
             actionsEl.appendChild(btn);
           });
-        } else {
-          actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent independent entities to join.</p>';
         }
+
+        // Allow independent states (even after joining another independent entity) to declare independence again
+        const indepBtn = document.createElement('button');
+        indepBtn.disabled = isReplaying;
+        indepBtn.className = 'action-btn btn-indep';
+        indepBtn.innerText = 'Declare Independence';
+        indepBtn.onclick = () => {
+          const indepCountry = {
+            type: 'INDEPENDENT',
+            key: `INDEP:${id}`,
+            name: name
+          };
+          changeStatus(feature, indepCountry);
+        };
+        actionsEl.appendChild(indepBtn);
+
       } else {
         const badgeClass = country.key === 'Canada' ? 'status-canada' : 
                            country.key === 'United States of America' ? 'status-us' : 'status-mexico';

@@ -85,6 +85,21 @@
       color: white;
     }
     .btn-indep:hover:not(:disabled) { background: #6a1b9a; }
+    .btn-canada {
+      background: #d32f2f;
+      color: white;
+    }
+    .btn-canada:hover:not(:disabled) { background: #c2185b; }
+    .btn-us {
+      background: #1976d2;
+      color: white;
+    }
+    .btn-us:hover:not(:disabled) { background: #1565c0; }
+    .btn-mexico {
+      background: #2e7d32;
+      color: white;
+    }
+    .btn-mexico:hover:not(:disabled) { background: #1b5e20; }
     .btn-join-indep {
       background: #4a148c;
       color: white;
@@ -300,8 +315,7 @@
 
             if (dist < 1200) {
               const neighborCountry = getCountryData(feat);
-              // Only collect other INDEPENDENT entities as valid join targets
-              if (neighborCountry.type === 'INDEPENDENT' && neighborCountry.key !== currentCountry.key) {
+              if (neighborCountry.key !== currentCountry.key) {
                 neighbors.set(neighborCountry.key, neighborCountry);
               }
             }
@@ -328,44 +342,40 @@
       actionsEl.innerHTML = '';
 
       if (country.type === 'INDEPENDENT') {
+        // Already independent -> Show join options, hide independence option.
         regionDetailsEl.innerHTML = `<span class="status-badge status-indep">${country.name}</span>`;
         
-        // Independent states can join adjacent independent entities
         const neighbors = getNeighboringEntities(feature);
         if (neighbors.length > 0) {
           neighbors.forEach(targetCountry => {
             const btn = document.createElement('button');
             btn.disabled = isReplaying;
-            btn.className = 'action-btn btn-join-indep';
-            btn.innerText = `Join ${targetCountry.name}`;
-            btn.onclick = () => changeStatus(feature, targetCountry);
+
+            if (targetCountry.type === 'INDEPENDENT') {
+              btn.className = 'action-btn btn-join-indep';
+              btn.innerText = `Join ${targetCountry.name}`;
+              btn.onclick = () => changeStatus(feature, targetCountry);
+            } else {
+              btn.className = 'action-btn ' + (
+                targetCountry.key === 'Canada' ? 'btn-canada' : 
+                targetCountry.key === 'United States of America' ? 'btn-us' : 'btn-mexico'
+              );
+              btn.innerText = `Join ${targetCountry.key === 'United States of America' ? 'USA' : targetCountry.key}`;
+              btn.onclick = () => changeStatus(feature, targetCountry);
+            }
             actionsEl.appendChild(btn);
           });
+        } else {
+          actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
         }
-
-        // Allow independent states (even after joining another independent entity) to declare independence again
-        const indepBtn = document.createElement('button');
-        indepBtn.disabled = isReplaying;
-        indepBtn.className = 'action-btn btn-indep';
-        indepBtn.innerText = 'Declare Independence';
-        indepBtn.onclick = () => {
-          const indepCountry = {
-            type: 'INDEPENDENT',
-            key: `INDEP:${id}`,
-            name: name
-          };
-          changeStatus(feature, indepCountry);
-        };
-        actionsEl.appendChild(indepBtn);
-
       } else {
+        // Sovereign nation -> Show independence option.
         const badgeClass = country.key === 'Canada' ? 'status-canada' : 
                            country.key === 'United States of America' ? 'status-us' : 'status-mexico';
         const displayName = country.key === 'United States of America' ? 'United States' : country.key;
 
         regionDetailsEl.innerHTML = `<span class="status-badge ${badgeClass}">${displayName}</span>`;
         
-        // Sovereign regions must declare independence before doing anything else
         const btn = document.createElement('button');
         btn.disabled = isReplaying;
         btn.className = 'action-btn btn-indep';

@@ -341,8 +341,12 @@
       regionNameEl.innerText = name;
       actionsEl.innerHTML = '';
 
-      if (country.type === 'INDEPENDENT') {
-        // Already independent -> Show join options, hide independence option.
+      // Check if this region is a Standalone Independent state 
+      // (meaning it has declared independence and has NOT joined another nation)
+      const isStandalone = country.type === 'INDEPENDENT' && country.key === `INDEP:${id}`;
+
+      if (isStandalone) {
+        // RULE 1: Standalone Independents can JOIN neighbors, but CANNOT "Declare Independence" again.
         regionDetailsEl.innerHTML = `<span class="status-badge status-indep">${country.name}</span>`;
         
         const neighbors = getNeighboringEntities(feature);
@@ -369,10 +373,16 @@
           actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
         }
       } else {
-        // Sovereign nation -> Show independence option.
-        const badgeClass = country.key === 'Canada' ? 'status-canada' : 
-                           country.key === 'United States of America' ? 'status-us' : 'status-mexico';
-        const displayName = country.key === 'United States of America' ? 'United States' : country.key;
+        // RULE 2: If it is part of ANY nation (Sovereign OR Joined to another Independent), 
+        // it MUST declare independence first. It CANNOT join another nation directly.
+        let badgeClass = 'status-indep';
+        let displayName = country.name;
+
+        if (country.type === 'SOVEREIGN') {
+          badgeClass = country.key === 'Canada' ? 'status-canada' : 
+                       country.key === 'United States of America' ? 'status-us' : 'status-mexico';
+          displayName = country.key === 'United States of America' ? 'United States' : country.key;
+        }
 
         regionDetailsEl.innerHTML = `<span class="status-badge ${badgeClass}">${displayName}</span>`;
         

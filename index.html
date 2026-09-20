@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Can-Expand PWA</title>
   <link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#1d3557" />
+  <meta name="theme-color" content="#1d3557" />
 
-    <!-- Browser tab icon -->
-<link rel="icon" type="image/png" href="./icon.png">
-<!-- iOS home screen support -->
-<link rel="apple-touch-icon" href="./icon.png">
+  <!-- Browser tab icon -->
+  <link rel="icon" type="image/png" href="./icon.png">
+  <!-- iOS home screen support -->
+  <link rel="apple-touch-icon" href="./icon.png">
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -341,43 +341,46 @@
       regionNameEl.innerText = name;
       actionsEl.innerHTML = '';
 
-      if (country.type === 'INDEPENDENT') {
-        regionDetailsEl.innerHTML = `<span class="status-badge status-indep">${country.name}</span>`;
-        
-        const neighbors = getNeighboringEntities(feature);
-        if (neighbors.length > 0) {
-          neighbors.forEach(targetCountry => {
-            const btn = document.createElement('button');
-            btn.disabled = isReplaying;
+      // Determine badge styling based on current affiliation
+      let badgeClass = 'status-indep';
+      let displayName = country.name;
+      if (country.type === 'SOVEREIGN') {
+        badgeClass = country.key === 'Canada' ? 'status-canada' : 
+                     country.key === 'United States of America' ? 'status-us' : 'status-mexico';
+        displayName = country.key === 'United States of America' ? 'United States' : country.key;
+      }
+      regionDetailsEl.innerHTML = `<span class="status-badge ${badgeClass}">${displayName}</span>`;
 
-            if (targetCountry.type === 'INDEPENDENT') {
-              btn.className = 'action-btn btn-join-indep';
-              btn.innerText = `Join ${targetCountry.name}`;
-              btn.onclick = () => changeStatus(feature, targetCountry);
-            } else {
-              btn.className = 'action-btn ' + (
-                targetCountry.key === 'Canada' ? 'btn-canada' : 
-                targetCountry.key === 'United States of America' ? 'btn-us' : 'btn-mexico'
-              );
-              btn.innerText = `Join ${targetCountry.key === 'United States of America' ? 'USA' : targetCountry.key}`;
-              btn.onclick = () => changeStatus(feature, targetCountry);
-            }
-            actionsEl.appendChild(btn);
-          });
-        } else {
-          actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
-        }
-      } else {
-        const badgeClass = country.key === 'Canada' ? 'status-canada' : 
-                           country.key === 'United States of America' ? 'status-us' : 'status-mexico';
+      // 1. Always offer neighboring entities to join (supports cross-independent joining & switching)
+      const neighbors = getNeighboringEntities(feature);
+      if (neighbors.length > 0) {
+        neighbors.forEach(targetCountry => {
+          const btn = document.createElement('button');
+          btn.disabled = isReplaying;
 
-        regionDetailsEl.innerHTML = `<span class="status-badge ${badgeClass}">${country.name}</span>`;
-        
-        const btn = document.createElement('button');
-        btn.disabled = isReplaying;
-        btn.className = 'action-btn btn-indep';
-        btn.innerText = 'Declare Independence';
-        btn.onclick = () => {
+          if (targetCountry.type === 'INDEPENDENT') {
+            btn.className = 'action-btn btn-join-indep';
+            btn.innerText = `Join ${targetCountry.name}`;
+          } else {
+            const sovereignKey = targetCountry.key;
+            btn.className = 'action-btn ' + (
+              sovereignKey === 'Canada' ? 'btn-canada' : 
+              sovereignKey === 'United States of America' ? 'btn-us' : 'btn-mexico'
+            );
+            btn.innerText = `Join ${sovereignKey === 'United States of America' ? 'USA' : sovereignKey}`;
+          }
+          btn.onclick = () => changeStatus(feature, targetCountry);
+          actionsEl.appendChild(btn);
+        });
+      }
+
+      // 2. Offer Independence option if currently part of a major sovereign nation
+      if (country.type === 'SOVEREIGN') {
+        const indepBtn = document.createElement('button');
+        indepBtn.disabled = isReplaying;
+        indepBtn.className = 'action-btn btn-indep';
+        indepBtn.innerText = 'Declare Independence';
+        indepBtn.onclick = () => {
           const indepCountry = {
             type: 'INDEPENDENT',
             key: `INDEP:${id}`,
@@ -385,7 +388,11 @@
           };
           changeStatus(feature, indepCountry);
         };
-        actionsEl.appendChild(btn);
+        actionsEl.appendChild(indepBtn);
+      }
+
+      if (actionsEl.children.length === 0) {
+        actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent options available.</p>';
       }
     }
 
@@ -400,7 +407,7 @@
         historyLog.push({
           id: id,
           name: feature.properties.name,
-          from: prevCountry.name,
+          from: prevCountry.name === 'United States of America' ? 'USA' : prevCountry.name,
           to: targetCountry.name === 'United States of America' ? 'USA' : targetCountry.name,
           targetCountryObj: targetCountry
         });

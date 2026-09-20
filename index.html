@@ -341,12 +341,21 @@
       regionNameEl.innerText = name;
       actionsEl.innerHTML = '';
 
-      // Check if this region is a Standalone Independent state 
-      // (meaning it has declared independence and has NOT joined another nation)
-      const isStandalone = country.type === 'INDEPENDENT' && country.key === `INDEP:${id}`;
+      // Determine if this region is a Standalone Independent state.
+      // It is standalone ONLY if it's independent AND it is the ONLY region belonging to this nation.
+      let isStandalone = false;
+      if (country.type === 'INDEPENDENT') {
+        let memberCount = 0;
+        rawFeatures.forEach(feat => {
+          if (getCountryData(feat).key === country.key) {
+            memberCount++;
+          }
+        });
+        isStandalone = (memberCount === 1);
+      }
 
       if (isStandalone) {
-        // RULE 1: Standalone Independents can JOIN neighbors, but CANNOT "Declare Independence" again.
+        // RULE 1: Standalone Independents (1 member) can JOIN neighbors, but CANNOT "Declare Independence" again.
         regionDetailsEl.innerHTML = `<span class="status-badge status-indep">${country.name}</span>`;
         
         const neighbors = getNeighboringEntities(feature);
@@ -373,7 +382,7 @@
           actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
         }
       } else {
-        // RULE 2: If it is part of ANY nation (Sovereign OR Joined to another Independent), 
+        // RULE 2: If it is part of ANY multi-state nation (Sovereign OR Joined to another Independent), 
         // it MUST declare independence first. It CANNOT join another nation directly.
         let badgeClass = 'status-indep';
         let displayName = country.name;

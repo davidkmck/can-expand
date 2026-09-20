@@ -202,6 +202,7 @@
     <div class="legend-item"><div class="color-box" style="background: #1d3557;"></div> United States</div>
     <div class="legend-item"><div class="color-box" style="background: #2a9d8f;"></div> Mexico</div>
     <div class="legend-item"><div class="color-box" style="background: #9c27b0;"></div> Independent State</div>
+    <div class="legend-item"><div class="color-box" style="background: #f57c00;"></div> Independent Union</div>
   </div>
 
   <!-- Leaflet & Turf.js -->
@@ -224,11 +225,18 @@
       maxZoom: 7
     });
 
-    // Color palette for distinct independent nations
+    // Color palette for standalone single-member independent nations
     const INDEPENDENT_PALETTE = [
       '#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2', 
       '#6a1b9a', '#4a148c', '#d81b60', '#c2185b', 
       '#ad1457', '#5e35b1', '#3f51b5', '#673ab7'
+    ];
+
+    // Color palette for multi-member independent unions (Non-purple, distinct from USA/CAN/MEX)
+    const UNION_PALETTE = [
+      '#f57c00', '#fbc02d', '#7cb342', '#00897b', 
+      '#039be5', '#f4511e', '#8d6e63', '#ffb300', 
+      '#43a047', '#00acc1', '#c0ca33', '#e53935'
     ];
 
     function getFeatureId(feature) {
@@ -248,13 +256,31 @@
       };
     }
 
+    // Returns the total number of features belonging to a specific nation key
+    function getMemberCount(countryKey) {
+      let count = 0;
+      rawFeatures.forEach(feat => {
+        if (getCountryData(feat).key === countryKey) {
+          count++;
+        }
+      });
+      return count;
+    }
+
     function getFeatureColor(feature) {
       const country = getCountryData(feature);
 
       if (country.type === 'INDEPENDENT') {
         const hash = country.key.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0);
-        const colorIndex = Math.abs(hash) % INDEPENDENT_PALETTE.length;
-        return INDEPENDENT_PALETTE[colorIndex];
+        const memberCount = getMemberCount(country.key);
+
+        if (memberCount === 1) {
+          const colorIndex = Math.abs(hash) % INDEPENDENT_PALETTE.length;
+          return INDEPENDENT_PALETTE[colorIndex];
+        } else {
+          const colorIndex = Math.abs(hash) % UNION_PALETTE.length;
+          return UNION_PALETTE[colorIndex];
+        }
       }
 
       if (country.key === 'Canada') return '#e63946';
@@ -341,17 +367,10 @@
       regionNameEl.innerText = name;
       actionsEl.innerHTML = '';
 
-      // Determine if this region is a Standalone Independent state.
-      // It is standalone ONLY if it's independent AND it is the ONLY region belonging to this nation.
+      // Determine if this region is a Standalone Independent state (exactly 1 member)
       let isStandalone = false;
       if (country.type === 'INDEPENDENT') {
-        let memberCount = 0;
-        rawFeatures.forEach(feat => {
-          if (getCountryData(feat).key === country.key) {
-            memberCount++;
-          }
-        });
-        isStandalone = (memberCount === 1);
+        isStandalone = (getMemberCount(country.key) === 1);
       }
 
       if (isStandalone) {
@@ -416,6 +435,9 @@
       const prevCountry = getCountryData(feature);
       
       stateStatus[id] = targetCountry;
+      
+      // Setting style forces a re-evaluation of colors for ALL features.
+      // This automatically re-colors nations when their member count goes from 1 to 2, or 2 to 1.
       geojsonLayer.setStyle(style);
 
       if (recordHistory) {

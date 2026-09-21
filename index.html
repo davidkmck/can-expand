@@ -216,32 +216,42 @@
 
   <div id="map"></div>
 
-  <!-- Region Detail Panel -->
-  <div class="info-panel" id="infoPanel">
-    <h2 id="regionName">North America Map</h2>
-    <p id="regionDetails">Click on any US state, Canadian province, or Mexican state to manage alignment.</p>
-    <div id="panelActions"></div>
-  </div>
+<!-- Region Detail Panel -->
+<div class="info-panel hidden" id="infoPanel">
+  <button class="close-btn" onclick="closeInfoPanel()">&times;</button>
+  <h2 id="regionName">Region Name</h2>
+  <p id="regionDetails">Details go here.</p>
+  <div id="panelActions"></div>
+</div>
 
-  <!-- History & Replay Panel -->
-  <div class="timeline-panel">
-    <div class="timeline-header">
-      <h3>History Log</h3>
+<!-- History & Replay Panel -->
+<div class="timeline-panel" id="timelinePanel">
+  <div class="timeline-header">
+    <h3>History Log</h3>
+    <div>
       <button class="btn-replay" id="replayBtn" onclick="animateHistory()">Replay Changes</button>
+      <button class="toggle-btn" onclick="togglePanel('timelinePanel')">&#8211;</button>
     </div>
-    <ul class="history-list" id="historyList">
-      <li><em>No changes recorded yet.</em></li>
-    </ul>
   </div>
+  <ul class="history-list" id="historyList">
+    <li><em>No changes recorded yet.</em></li>
+  </ul>
+</div>
 
-  <!-- Country Legend -->
-  <div class="legend">
+<!-- Country Legend -->
+<div class="legend" id="legendPanel">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+    <strong>Legend</strong>
+    <button class="toggle-btn" onclick="togglePanel('legendPanel')">&#8211;</button>
+  </div>
+  <div class="legend-items">
     <div class="legend-item"><div class="color-box" style="background: #e63946;"></div> Canada</div>
     <div class="legend-item"><div class="color-box" style="background: #1d3557;"></div> United States</div>
     <div class="legend-item"><div class="color-box" style="background: #2a9d8f;"></div> Mexico</div>
     <div class="legend-item"><div class="color-box" style="background: #9c27b0;"></div> Independent State</div>
     <div class="legend-item"><div class="color-box" style="background: #f57c00;"></div> Independent Union</div>
   </div>
+</div>
 
   <!-- Leaflet & Turf.js -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -392,6 +402,9 @@
 
     function updatePanel(feature) {
       if (!feature) return;
+
+      // Make sure the panel is visible when a state is clicked
+      document.getElementById('infoPanel').classList.remove('hidden');
       
       const properties = feature.properties;
       const id = getFeatureId(feature);
@@ -547,6 +560,17 @@
       });
     }
 
+    // Dismisses the region detail panel
+    function closeInfoPanel() {
+      document.getElementById('infoPanel').classList.add('hidden');
+      selectedFeature = null; // Clears the selection
+    }
+    
+    // Toggles the minimize/maximize state of permanent panels
+    function togglePanel(panelId) {
+      document.getElementById(panelId).classList.toggle('minimized');
+    }
+    
     // Load GeoJSON Boundaries
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
       .then(res => res.json())

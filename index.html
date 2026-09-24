@@ -247,9 +247,9 @@
 <div class="legend-items">
     <div class="legend-item"><div class="color-box" style="background: #e63946;"></div> Canada</div>
     <div class="legend-item"><div class="color-box" style="background: #1d3557;"></div> United States</div>
-    <div class="legend-item"><div class="color-box" style="background: #2a9d8f;"></div> Mexico</div>
+    <div class="legend-item"><div class="color-box" style="background: #2e7d32;"></div> Mexico</div>
     <div class="legend-item"><div class="color-box" style="background: #8e24aa;"></div> Independent State</div>
-    <div class="legend-item"><div class="color-box" style="background: #43a047;"></div> Independent Union</div>
+    <div class="legend-item"><div class="color-box" style="background: #fbc02d;"></div> Independent Union</div>
 </div>
 </div>
 
@@ -331,11 +331,10 @@ const UNION_PALETTE = [
         }
       }
 
-      if (country.key === 'Canada') return '#e63946';
-      if (country.key === 'United States of America') return '#1d3557';
-      if (country.key === 'Mexico') return '#2a9d8f';
-
-      return '#457b9d';
+    if (country.key === 'Canada') return '#e63946';
+        if (country.key === 'United States of America') return '#1d3557';
+        if (country.key === 'Mexico') return '#2e7d32'; // Updated to rich forest green
+        return '#457b9d';
     }
 
     function style(feature) {

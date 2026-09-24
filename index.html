@@ -451,34 +451,32 @@
         } else {
           actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
         }
-      } else {
-        // RULE 2: If it is part of ANY multi-state nation (Sovereign OR Joined to another Independent), 
-        // it MUST declare independence first. It CANNOT join another nation directly.
-        let badgeClass = 'status-indep';
-        let displayName = country.name;
-
-        if (country.type === 'SOVEREIGN') {
-          badgeClass = country.key === 'Canada' ? 'status-canada' : 
-                       country.key === 'United States of America' ? 'status-us' : 'status-mexico';
-          displayName = country.key === 'United States of America' ? 'United States' : country.key;
-        }
-
-        regionDetailsEl.innerHTML = `<span class="status-badge ${badgeClass}">${displayName}</span>`;
-        
-        const btn = document.createElement('button');
-        btn.disabled = isReplaying;
-        btn.className = 'action-btn btn-indep';
-        btn.innerText = 'Declare Independence';
-        btn.onclick = () => {
-          const indepCountry = {
-            type: 'INDEPENDENT',
-            key: `INDEP:${id}`,
-            name: name
+    } else {
+          // RULE 2: If it is part of ANY multi-state nation (Sovereign OR Joined to another Independent),
+          // it MUST declare independence first. It CANNOT join another nation directly.
+          let badgeClass = 'status-indep';
+          let displayName = country.name;
+          if (country.type === 'SOVEREIGN') {
+              badgeClass = country.key === 'Canada' ? 'status-canada' : country.key === 'United States of America' ? 'status-us' : 'status-mexico';
+              displayName = country.key === 'United States of America' ? 'United States' : country.key;
+          }
+          regionDetailsEl.innerHTML = `<span class="status-badge ${badgeClass}">${displayName}</span>`;
+          const btn = document.createElement('button');
+          btn.disabled = isReplaying;
+          btn.className = 'action-btn btn-indep';
+          btn.innerText = 'Declare Independence';
+          btn.onclick = () => {
+              // Cheeky Canada check!
+              if (country.key === 'Canada') {
+                  alert('Canada is NOT for sale!');
+                  return;
+              }
+              const indepCountry = { type: 'INDEPENDENT', key: `INDEP:${id}`, name: name };
+              changeStatus(feature, indepCountry);
           };
-          changeStatus(feature, indepCountry);
-        };
-        actionsEl.appendChild(btn);
+          actionsEl.appendChild(btn);
       }
+            
     }
 
     function changeStatus(feature, targetCountry, recordHistory = true) {

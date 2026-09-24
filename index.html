@@ -249,7 +249,7 @@
     <div class="legend-item"><div class="color-box" style="background: #1d3557;"></div> United States</div>
     <div class="legend-item"><div class="color-box" style="background: #2a9d8f;"></div> Mexico</div>
     <div class="legend-item"><div class="color-box" style="background: #8e24aa;"></div> Independent State</div>
-    <div class="legend-item"><div class="color-box" style="background: #f57c00;"></div> Independent Union</div>
+    <div class="legend-item"><div class="color-box" style="background: #43a047;"></div> Independent Union</div>
 </div>
 </div>
 
@@ -280,12 +280,12 @@
       '#ad1457', '#5e35b1', '#3f51b5', '#673ab7'
     ];
 
-    // Color palette for multi-member independent unions (Non-purple, distinct from USA/CAN/MEX)
-    const UNION_PALETTE = [
-      '#f57c00', '#fbc02d', '#7cb342', '#00897b', 
-      '#039be5', '#f4511e', '#8d6e63', '#ffb300', 
-      '#43a047', '#00acc1', '#c0ca33', '#e53935'
-    ];
+// Color palette for multi-member independent unions (Distinct shades of green)
+const UNION_PALETTE = [
+  '#43a047', '#2e7d32', '#66bb6a', '#81c784', 
+  '#00897b', '#00acc1', '#26a69a', '#00796b', 
+  '#558b2f', '#7cb342', '#9ccc65', '#33691e'
+];
 
     function getFeatureId(feature) {
       return feature.properties.iso_3166_2 || feature.properties.name;

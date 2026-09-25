@@ -150,31 +150,6 @@
       list-style-type: disc;
       padding-left: 18px;
     }
-
-    /* Legend Panel */
-    .legend {
-      position: absolute;
-      bottom: 20px;
-      left: 20px;
-      z-index: 1000;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px 14px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      margin-bottom: 4px;
-    }
-    .legend-item:last-child { margin-bottom: 0; }
-    .color-box {
-      width: 14px;
-      height: 14px;
-      margin-right: 8px;
-      border-radius: 3px;
-    }
     
     /* Panel Controls */
     .close-btn {
@@ -200,8 +175,7 @@
       font-size: 1rem;
     }
     .hidden { display: none !important; }
-    .minimized .history-list,
-    .minimized .legend-items { display: none; }
+    .minimized .history-list { display: none; }
   </style>
 </head>
 <body>
@@ -243,19 +217,6 @@
   </ul>
 </div>
 
-<!-- Country Legend -->
-<div class="legend" id="legendPanel">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-    <strong>Legend</strong>
-    <button class="toggle-btn" onclick="togglePanel('legendPanel')">&#8211;</button>
-  </div>
-<div class="legend-items">
-    <div class="legend-item"><div class="color-box" style="background: #e63946;"></div> Sovereign Nation</div>
-    <div class="legend-item"><div class="color-box" style="background: #8e24aa;"></div> Independent State</div>
-    <div class="legend-item"><div class="color-box" style="background: #43a047;"></div> Independent Union</div>
-</div>
-</div>
-
   <!-- Leaflet & Turf.js -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
@@ -274,11 +235,10 @@
       center: [40.0, -96.0],
       zoom: 4,
       minZoom: 2,
-      maxZoom: 12 // Increased so players can zoom way in on small regions
+      maxZoom: 12
     });
 
     // --- CONTINENT MAPPING ---
-    // Maps Natural Earth 'admin' strings to specific continents
     const CONTINENTS = {
       "North America": ["United States of America", "Canada", "Mexico", "Guatemala", "Honduras", "El Salvador", "Nicaragua", "Costa Rica", "Panama", "Belize", "Cuba", "The Bahamas", "Haiti", "Dominican Republic", "Jamaica", "Greenland", "Puerto Rico"],
       "South America": ["Brazil", "Argentina", "Colombia", "Peru", "Chile", "Venezuela", "Ecuador", "Bolivia", "Paraguay", "Uruguay", "Guyana", "Suriname", "Trinidad and Tobago", "Falkland Islands"],
@@ -289,9 +249,8 @@
     };
 
     // --- CONTINENT BOUNDS (Perfect framing for each region) ---
-    // Format: [[South, West], [North, East]]
     const CONTINENT_BOUNDS = {
-      "North America": [[14, -165], [75, -55]], // Cuts out deep Pacific, focuses on mainland + Alaska
+      "North America": [[14, -165], [75, -55]],
       "South America": [[-56, -82], [13, -34]],
       "Europe": [[34, -12], [71, 45]],
       "Asia": [[-11, 26], [75, 145]],
@@ -567,21 +526,29 @@
       // Auto-zoom map using our predefined perfect bounds
       const bounds = CONTINENT_BOUNDS[selectedContinent];
       if (bounds) {
-        // The padding here adds just a little extra width around the edges
         map.fitBounds(bounds, { padding: [30, 30] }); 
       } else if (rawFeatures.length > 0) {
-        // Fallback just in case
         map.fitBounds(geojsonLayer.getBounds(), { padding: [30, 30] });
       }
-          
-          closeInfoPanel();
-        }
+      
+      closeInfoPanel();
+    }
 
-    // Initialize: Fetch the high-res 10m dataset once, store it, and trigger the initial load
+    // Initialize
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson') 
       .then(res => res.json())
       .then(data => {
         allGlobalFeatures = data.features;
+        
+        // Data Correction interceptor
+        allGlobalFeatures.forEach(f => {
+          const regionName = f.properties.name || '';
+          if (regionName.includes('Crimea') || regionName === 'Sevastopol') {
+            f.properties.admin = 'Ukraine';
+            f.properties.sovereignt = 'Ukraine';
+          }
+        });
+
         loadContinent(); // Default parses North America initially
       })
       .catch(err => {

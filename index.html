@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Can-Expand PWA - Global</title>
+  <title>Can-Expand PWA - Continents</title>
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#1d3557" />
 
   <!-- Browser tab icon -->
   <link rel="icon" type="image/png" href="./icon.png">
-  <!-- iOS home screen support -->
   <link rel="apple-touch-icon" href="./icon.png">
   
   <!-- Leaflet CSS -->
@@ -28,6 +27,31 @@
       background: #aad3df;
     }
     
+    /* Continent Selector Styling */
+    .continent-selector {
+      position: absolute;
+      top: 20px;
+      left: 60px; /* Clears Leaflet zoom controls */
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 10px 14px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      backdrop-filter: blur(4px);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #333;
+    }
+    .continent-selector select {
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-weight: bold;
+      margin-left: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
     /* Control Panel Styling */
     .info-panel {
       position: absolute;
@@ -127,6 +151,7 @@
       padding-left: 18px;
     }
 
+    /* Legend Panel */
     .legend {
       position: absolute;
       bottom: 20px;
@@ -181,6 +206,19 @@
 </head>
 <body>
 
+  <!-- Top Continent Selector -->
+  <div class="continent-selector">
+    <label for="continentSelect">Region:</label>
+    <select id="continentSelect" onchange="loadContinent()">
+      <option value="North America" selected>North America</option>
+      <option value="South America">South America</option>
+      <option value="Europe">Europe</option>
+      <option value="Asia">Asia</option>
+      <option value="Africa">Africa</option>
+      <option value="Oceania">Oceania</option>
+    </select>
+  </div>
+
   <div id="map"></div>
 
 <!-- Region Detail Panel -->
@@ -228,122 +266,85 @@
     const historyLog = [];
     let selectedFeature = null;
     let geojsonLayer = null;
-    let rawFeatures = [];
+    let allGlobalFeatures = []; // Master list holding the full JSON data
+    let rawFeatures = [];       // Filtered list currently displayed
     let isReplaying = false;
 
-    // Adjusted for a global starting view
     const map = L.map('map', {
-      center: [20.0, 0.0],
-      zoom: 2,
+      center: [40.0, -96.0],
+      zoom: 4,
       minZoom: 2,
-      maxZoom: 7
+      maxZoom: 8
     });
 
-    const INDEPENDENT_PALETTE = [
-      '#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2', 
-      '#6a1b9a', '#4a148c', '#d81b60', '#c2185b', 
-      '#ad1457', '#5e35b1', '#3f51b5', '#673ab7'
-    ];
+    // --- CONTINENT MAPPING ---
+    // Maps Natural Earth 'admin' strings to specific continents
+    const CONTINENTS = {
+      "North America": ["United States of America", "Canada", "Mexico", "Guatemala", "Honduras", "El Salvador", "Nicaragua", "Costa Rica", "Panama", "Belize", "Cuba", "The Bahamas", "Haiti", "Dominican Republic", "Jamaica", "Greenland", "Puerto Rico"],
+      "South America": ["Brazil", "Argentina", "Colombia", "Peru", "Chile", "Venezuela", "Ecuador", "Bolivia", "Paraguay", "Uruguay", "Guyana", "Suriname", "Trinidad and Tobago", "Falkland Islands"],
+      "Europe": ["United Kingdom", "France", "Germany", "Italy", "Spain", "Poland", "Ukraine", "Sweden", "Norway", "Finland", "Belarus", "Romania", "Greece", "Netherlands", "Belgium", "Czechia", "Portugal", "Hungary", "Austria", "Switzerland", "Bulgaria", "Denmark", "Slovakia", "Ireland", "Croatia", "Moldova", "Bosnia and Herzegovina", "Albania", "Lithuania", "Slovenia", "Latvia", "Estonia", "Montenegro", "Luxembourg", "Malta", "Iceland", "Serbia", "North Macedonia", "Kosovo"],
+      "Asia": ["Russia", "China", "India", "Japan", "South Korea", "North Korea", "Indonesia", "Iran", "Turkey", "Saudi Arabia", "Pakistan", "Vietnam", "Thailand", "Myanmar", "Iraq", "Afghanistan", "Uzbekistan", "Malaysia", "Yemen", "Nepal", "Syria", "Sri Lanka", "Kazakhstan", "Cambodia", "Jordan", "Azerbaijan", "United Arab Emirates", "Tajikistan", "Israel", "Laos", "Lebanon", "Kyrgyzstan", "Turkmenistan", "Singapore", "Oman", "State of Palestine", "Kuwait", "Georgia", "Mongolia", "Armenia", "Qatar", "Bahrain", "Cyprus", "Taiwan", "Philippines", "Bangladesh"],
+      "Africa": ["Nigeria", "Ethiopia", "Egypt", "Democratic Republic of the Congo", "Tanzania", "South Africa", "Kenya", "Uganda", "Algeria", "Sudan", "Morocco", "Angola", "Mozambique", "Ghana", "Madagascar", "Cameroon", "Côte d'Ivoire", "Niger", "Burkina Faso", "Mali", "Malawi", "Zambia", "Senegal", "Chad", "Somalia", "Zimbabwe", "Guinea", "Rwanda", "Benin", "Burundi", "Tunisia", "South Sudan", "Togo", "Sierra Leone", "Libya", "Republic of Congo", "Liberia", "Central African Republic", "Mauritania", "Eritrea", "Namibia", "Gambia", "Botswana", "Gabon", "Lesotho", "Guinea-Bissau", "Equatorial Guinea", "Mauritius", "Eswatini", "Djibouti", "Comoros", "Cabo Verde", "Sao Tome and Principe", "Seychelles"],
+      "Oceania": ["Australia", "New Zealand", "Papua New Guinea", "Fiji", "Solomon Islands", "Micronesia", "Vanuatu", "Samoa", "Kiribati", "Tonga", "Marshall Islands", "Palau", "Tuvalu", "Nauru", "New Caledonia", "French Polynesia"]
+    };
 
-    const UNION_PALETTE = [
-      '#43a047', '#2e7d32', '#66bb6a', '#81c784', 
-      '#00897b', '#00acc1', '#26a69a', '#00796b', 
-      '#558b2f', '#7cb342', '#9ccc65', '#33691e'
-    ];
+    const INDEPENDENT_PALETTE = ['#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2', '#6a1b9a', '#4a148c', '#d81b60', '#c2185b', '#ad1457', '#5e35b1', '#3f51b5', '#673ab7'];
+    const UNION_PALETTE = ['#43a047', '#2e7d32', '#66bb6a', '#81c784', '#00897b', '#00acc1', '#26a69a', '#00796b', '#558b2f', '#7cb342', '#9ccc65', '#33691e'];
     
-    // Explicit colors for some major nations, everything else is dynamically hashed
     const SOVEREIGN_COLORS = {
-      'Canada': '#e63946',
-      'United States of America': '#1d3557',
-      'Mexico': '#a0522d',
-      'United Kingdom': '#2b2d42',
-      'France': '#00509d',
-      'Germany': '#ffb703',
-      'Russia': '#8b0000',
-      'China': '#d00000',
-      'Brazil': '#38b000',
-      'Australia': '#ff9f1c',
-      'India': '#f4a261',
-      'Japan': '#bc4749'
+      'Canada': '#e63946', 'United States of America': '#1d3557', 'Mexico': '#a0522d', 
+      'United Kingdom': '#2b2d42', 'France': '#00509d', 'Germany': '#ffb703', 
+      'Russia': '#8b0000', 'China': '#d00000', 'Brazil': '#38b000', 
+      'Australia': '#ff9f1c', 'India': '#f4a261', 'Japan': '#bc4749'
     };
 
     function getFeatureId(feature) {
       return feature.properties.iso_3166_2 || feature.properties.name || feature.properties.adm1_code;
     }
 
-    // Generates a deterministic hex color based on a string
     function getSovereignColor(name) {
       if (SOVEREIGN_COLORS[name]) return SOVEREIGN_COLORS[name];
       if (!name) return '#457b9d';
       let hash = 0;
-      for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      // Keep colors slightly muted by bitwise ANDing and adding offset
+      for (let i = 0; i < name.length; i++) { hash = name.charCodeAt(i) + ((hash << 5) - hash); }
       const c = (hash & 0x00777777) + 0x444444; 
       return '#' + c.toString(16).padStart(6, '0');
     }
 
     function getCountryData(feature) {
       const id = getFeatureId(feature);
-      if (stateStatus[id]) {
-        return stateStatus[id];
-      }
-      // Fallback property mapping for broader datasets
+      if (stateStatus[id]) return stateStatus[id];
       const adminName = feature.properties.admin || feature.properties.sovereignt || 'Unknown';
-      return {
-        type: 'SOVEREIGN',
-        key: adminName,
-        name: adminName
-      };
+      return { type: 'SOVEREIGN', key: adminName, name: adminName };
     }
 
     function getMemberCount(countryKey) {
       let count = 0;
       rawFeatures.forEach(feat => {
-        if (getCountryData(feat).key === countryKey) {
-          count++;
-        }
+        if (getCountryData(feat).key === countryKey) count++;
       });
       return count;
     }
 
     function getFeatureColor(feature) {
       const country = getCountryData(feature);
-
       if (country.type === 'INDEPENDENT') {
         const hash = country.key.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0);
         const memberCount = getMemberCount(country.key);
-
-        if (memberCount === 1) {
-          const colorIndex = Math.abs(hash) % INDEPENDENT_PALETTE.length;
-          return INDEPENDENT_PALETTE[colorIndex];
-        } else {
-          const colorIndex = Math.abs(hash) % UNION_PALETTE.length;
-          return UNION_PALETTE[colorIndex];
-        }
+        return memberCount === 1 
+          ? INDEPENDENT_PALETTE[Math.abs(hash) % INDEPENDENT_PALETTE.length]
+          : UNION_PALETTE[Math.abs(hash) % UNION_PALETTE.length];
       }
-      
       return getSovereignColor(country.key);
     }
 
     function style(feature) {
-      return {
-        fillColor: getFeatureColor(feature),
-        weight: 1.0,
-        opacity: 1,
-        color: '#ffffff',
-        fillOpacity: 0.75
-      };
+      return { fillColor: getFeatureColor(feature), weight: 1.0, opacity: 1, color: '#ffffff', fillOpacity: 0.75 };
     }
 
     function highlightFeature(e) {
       const layer = e.target;
-      layer.setStyle({
-        weight: 3,
-        color: '#ffb703',
-        fillOpacity: 0.9
-      });
+      layer.setStyle({ weight: 3, color: '#ffb703', fillOpacity: 0.9 });
       layer.bringToFront();
     }
 
@@ -364,19 +365,14 @@
 
         try {
           const featBbox = turf.bbox(feat);
-          // Check for bounding box overlap first for performance
           const bboxOverlap = !(
-            targetBbox[0] > featBbox[2] + 0.5 ||
-            targetBbox[2] < featBbox[0] - 0.5 ||
-            targetBbox[1] > featBbox[3] + 0.5 ||
-            targetBbox[3] < featBbox[1] - 0.5
+            targetBbox[0] > featBbox[2] + 0.5 || targetBbox[2] < featBbox[0] - 0.5 ||
+            targetBbox[1] > featBbox[3] + 0.5 || targetBbox[3] < featBbox[1] - 0.5
           );
 
           if (bboxOverlap) {
             const featCenter = turf.centroid(feat);
             const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
-
-            // Using 1000km to support large global subdivisions
             if (dist < 1000) {
               const neighborCountry = getCountryData(feat);
               if (neighborCountry.key !== currentCountry.key) {
@@ -386,13 +382,11 @@
           }
         } catch (e) {}
       });
-
       return Array.from(neighbors.values());
     }
 
     function updatePanel(feature) {
       if (!feature) return;
-
       document.getElementById('infoPanel').classList.remove('hidden');
       
       const properties = feature.properties;
@@ -412,11 +406,9 @@
         isStandalone = (getMemberCount(country.key) === 1);
       }
 
-      // Format clean display names
       const formatName = (str) => str === 'United States of America' ? 'USA' : str;
 
       if (isStandalone) {
-        // Standalone independent workflow
         const color = getFeatureColor(feature);
         regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${color};">${country.name}</span>`;
         
@@ -428,34 +420,32 @@
             btn.className = 'action-btn';
             
             if (targetCountry.type === 'INDEPENDENT') {
-              btn.style.background = '#4a148c'; // Universal Join Union color
+              btn.style.background = '#4a148c'; 
               btn.innerText = `Join ${formatName(targetCountry.name)}`;
             } else {
               btn.style.background = getSovereignColor(targetCountry.key);
               btn.innerText = `Join ${formatName(targetCountry.key)}`;
             }
-            
             btn.onclick = () => changeStatus(feature, targetCountry);
             actionsEl.appendChild(btn);
           });
         } else {
           actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
         }
-    } else {
-          // Part of multi-state/sovereign nation workflow
-          let badgeColor = country.type === 'SOVEREIGN' ? getSovereignColor(country.key) : getFeatureColor(feature);
-          regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${badgeColor};">${formatName(country.name)}</span>`;
-          
-          const btn = document.createElement('button');
-          btn.disabled = isReplaying;
-          btn.className = 'action-btn';
-          btn.style.background = '#7b1fa2'; // Independence purple
-          btn.innerText = 'Declare Independence';
-          btn.onclick = () => {
-              const indepCountry = { type: 'INDEPENDENT', key: `INDEP:${id}`, name: name };
-              changeStatus(feature, indepCountry);
-          };
-          actionsEl.appendChild(btn);
+      } else {
+        let badgeColor = country.type === 'SOVEREIGN' ? getSovereignColor(country.key) : getFeatureColor(feature);
+        regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${badgeColor};">${formatName(country.name)}</span>`;
+        
+        const btn = document.createElement('button');
+        btn.disabled = isReplaying;
+        btn.className = 'action-btn';
+        btn.style.background = '#7b1fa2'; 
+        btn.innerText = 'Declare Independence';
+        btn.onclick = () => {
+            const indepCountry = { type: 'INDEPENDENT', key: `INDEP:${id}`, name: name };
+            changeStatus(feature, indepCountry);
+        };
+        actionsEl.appendChild(btn);
       }
     }
 
@@ -477,9 +467,7 @@
         renderHistoryUI();
       }
 
-      if (selectedFeature && getFeatureId(selectedFeature) === id) {
-        updatePanel(feature);
-      }
+      if (selectedFeature && getFeatureId(selectedFeature) === id) updatePanel(feature);
     }
 
     function renderHistoryUI() {
@@ -488,11 +476,7 @@
         listEl.innerHTML = '<li><em>No changes recorded yet.</em></li>';
         return;
       }
-      
-      listEl.innerHTML = historyLog.map(item => {
-        return `<li><strong>${item.name}</strong>: ${item.from} → ${item.to}</li>`;
-      }).join('');
-      
+      listEl.innerHTML = historyLog.map(item => `<li><strong>${item.name}</strong>: ${item.from} → ${item.to}</li>`).join('');
       listEl.scrollTop = listEl.scrollHeight;
     }
 
@@ -502,6 +486,7 @@
       isReplaying = true;
       document.getElementById('replayBtn').disabled = true;
 
+      // Reset visually
       Object.keys(stateStatus).forEach(key => delete stateStatus[key]);
       geojsonLayer.setStyle(style);
 
@@ -511,6 +496,9 @@
           clearInterval(interval);
           isReplaying = false;
           document.getElementById('replayBtn').disabled = false;
+          // Re-apply correct state memory
+          historyLog.forEach(entry => stateStatus[entry.id] = entry.targetCountryObj);
+          geojsonLayer.setStyle(style);
           if (selectedFeature) updatePanel(selectedFeature);
           return;
         }
@@ -518,6 +506,7 @@
         const entry = historyLog[step];
         const feat = rawFeatures.find(f => getFeatureId(f) === entry.id);
         if (feat) {
+          stateStatus[feat.id] = entry.targetCountryObj;
           changeStatus(feat, entry.targetCountryObj, false);
         }
         step++;
@@ -540,21 +529,44 @@
       selectedFeature = null; 
     }
     
-    function togglePanel(panelId) {
-      document.getElementById(panelId).classList.toggle('minimized');
+    function togglePanel(panelId) { document.getElementById(panelId).classList.toggle('minimized'); }
+
+    // Renders the currently selected continent from the dropdown
+    function loadContinent() {
+      const selectedContinent = document.getElementById('continentSelect').value;
+      const targetCountries = CONTINENTS[selectedContinent] || [];
+
+      // Filter global master dataset against the target continent array
+      rawFeatures = allGlobalFeatures.filter(f => {
+         const admin = f.properties.admin || f.properties.sovereignt;
+         return targetCountries.includes(admin);
+      });
+
+      // Clear existing map layer
+      if (geojsonLayer) {
+        map.removeLayer(geojsonLayer);
+      }
+
+      // Rebuild map layer
+      geojsonLayer = L.geoJSON(rawFeatures, {
+        style: style,
+        onEachFeature: onEachFeature
+      }).addTo(map);
+
+      // Auto-zoom map to fit the bounds of the newly loaded continent
+      if (rawFeatures.length > 0) {
+        map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+      }
+      
+      closeInfoPanel();
     }
 
-    // Load GLOBAL GeoJSON Boundaries (using 50m dataset for better performance)
-    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson') 
+    // Initialize: Fetch the high-res 10m dataset once, store it, and trigger the initial load
+    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson') 
       .then(res => res.json())
       .then(data => {
-        // Removed the filter logic entirely so all countries are loaded
-        rawFeatures = data.features;
-
-        geojsonLayer = L.geoJSON(rawFeatures, {
-          style: style,
-          onEachFeature: onEachFeature
-        }).addTo(map);
+        allGlobalFeatures = data.features;
+        loadContinent(); // Default parses North America initially
       })
       .catch(err => {
         console.error('Error loading GeoJSON:', err);

@@ -412,6 +412,12 @@
         btn.style.background = '#7b1fa2'; 
         btn.innerText = 'Declare Independence';
         btn.onclick = () => {
+            // Cheeky Canada Check Restored Here:
+            if (country.key === 'Canada') {
+              alert('Canada is NOT for sale!');
+              return;
+            }
+
             const indepCountry = { type: 'INDEPENDENT', key: `INDEP:${id}`, name: name };
             changeStatus(feature, indepCountry);
         };

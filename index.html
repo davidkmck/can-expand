@@ -288,6 +288,17 @@
       "Oceania": ["Australia", "New Zealand", "Papua New Guinea", "Fiji", "Solomon Islands", "Micronesia", "Vanuatu", "Samoa", "Kiribati", "Tonga", "Marshall Islands", "Palau", "Tuvalu", "Nauru", "New Caledonia", "French Polynesia"]
     };
 
+    // --- CONTINENT BOUNDS (Perfect framing for each region) ---
+    // Format: [[South, West], [North, East]]
+    const CONTINENT_BOUNDS = {
+      "North America": [[14, -165], [75, -55]], // Cuts out deep Pacific, focuses on mainland + Alaska
+      "South America": [[-56, -82], [13, -34]],
+      "Europe": [[34, -12], [71, 45]],
+      "Asia": [[-11, 26], [75, 145]],
+      "Africa": [[-35, -20], [38, 55]],
+      "Oceania": [[-48, 110], [5, 180]]
+    };
+
     const INDEPENDENT_PALETTE = ['#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2', '#6a1b9a', '#4a148c', '#d81b60', '#c2185b', '#ad1457', '#5e35b1', '#3f51b5', '#673ab7'];
     const UNION_PALETTE = ['#43a047', '#2e7d32', '#66bb6a', '#81c784', '#00897b', '#00acc1', '#26a69a', '#00796b', '#558b2f', '#7cb342', '#9ccc65', '#33691e'];
     
@@ -553,17 +564,15 @@
         onEachFeature: onEachFeature
       }).addTo(map);
 
-    // Auto-zoom map to fit the bounds of the newly loaded continent
-          if (rawFeatures.length > 0) {
-            // Use 0 padding to maximize space
-            map.fitBounds(geojsonLayer.getBounds(), { padding: [0, 0] });
-            
-            // Force the map to zoom in 1 extra level closer 
-            // (Wait 100ms so it doesn't conflict with the fitBounds animation)
-            setTimeout(() => {
-              map.zoomIn(1); // Change this to 2 if you want it even closer!
-            }, 100);
-          }
+      // Auto-zoom map using our predefined perfect bounds
+      const bounds = CONTINENT_BOUNDS[selectedContinent];
+      if (bounds) {
+        // The padding here adds just a little extra width around the edges
+        map.fitBounds(bounds, { padding: [30, 30] }); 
+      } else if (rawFeatures.length > 0) {
+        // Fallback just in case
+        map.fitBounds(geojsonLayer.getBounds(), { padding: [30, 30] });
+      }
           
           closeInfoPanel();
         }

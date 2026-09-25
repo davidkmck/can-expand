@@ -570,7 +570,8 @@ const UNION_PALETTE = [
     function togglePanel(panelId) {
       document.getElementById(panelId).classList.toggle('minimized');
     }
-    
+
+    /* 
     // Load GeoJSON Boundaries
    // fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
         // lighter map
@@ -589,6 +590,27 @@ const UNION_PALETTE = [
       .catch(err => {
         document.getElementById('regionDetails').innerText = 'Failed to load spatial boundaries data.';
       });
+*/
+  
+// Load GeoJSON Boundaries
+    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson') 
+      .then(res => res.json())
+      .then(data => {
+        rawFeatures = data.features.filter(f => {
+          const admin = f.properties.admin || f.properties.sovereignt;
+          return ['United States of America', 'Canada', 'Mexico'].includes(admin);
+        });
+
+        geojsonLayer = L.geoJSON(rawFeatures, {
+          style: style,
+          onEachFeature: onEachFeature
+        }).addTo(map);
+      })
+      .catch(err => {
+        console.error('Error loading GeoJSON:', err);
+        document.getElementById('regionDetails').innerText = 'Failed to load spatial boundaries data.';
+      });
+    
   </script>
 </body>
 </html>

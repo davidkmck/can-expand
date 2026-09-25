@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Can-Expand PWA</title>
+  <title>Can-Expand PWA - Global</title>
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#1d3557" />
 
@@ -60,14 +60,9 @@
       font-weight: 600;
       margin-bottom: 12px;
       text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
     }
-    .status-us { background: #e3f2fd; color: #0d47a1; }
-    .status-canada { background: #ffebee; color: #c62828; }
-    .status-indep { background: #f3e5f5; color: #4a148c; }
-
-    .status-mexico { background: #faeedb; color: #a0522d; }
-.btn-mexico {background: #a0522d; color: white; }
-.btn-mexico:hover:not(:disabled) { background: #8b4513; }
     
     .action-btn {
       width: 100%;
@@ -77,37 +72,17 @@
       font-weight: 600;
       cursor: pointer;
       margin-bottom: 8px;
-      transition: background 0.2s ease, opacity 0.2s ease;
+      transition: filter 0.2s ease, opacity 0.2s ease;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    .action-btn:hover:not(:disabled) {
+      filter: brightness(0.85);
     }
     .action-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
-    .btn-indep {
-      background: #7b1fa2;
-      color: white;
-    }
-    .btn-indep:hover:not(:disabled) { background: #6a1b9a; }
-    .btn-canada {
-      background: #d32f2f;
-      color: white;
-    }
-    .btn-canada:hover:not(:disabled) { background: #c2185b; }
-    .btn-us {
-      background: #1976d2;
-      color: white;
-    }
-    .btn-us:hover:not(:disabled) { background: #1565c0; }
-    .btn-mexico {
-      background: #2e7d32;
-      color: white;
-    }
-    .btn-mexico:hover:not(:disabled) { background: #1b5e20; }
-    .btn-join-indep {
-      background: #4a148c;
-      color: white;
-    }
-    .btn-join-indep:hover:not(:disabled) { background: #311b92; }
 
     /* Timeline & Replay Panel */
     .timeline-panel {
@@ -175,44 +150,33 @@
       margin-right: 8px;
       border-radius: 3px;
     }
-    /* Panel Controls */
-.close-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  font-weight: bold;
-  cursor: pointer;
-  color: #666;
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: #000;
-}
-
-.toggle-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-  margin-left: 8px;
-  color: #555;
-  font-size: 1rem;
-}
-
-/* Visibility Classes */
-.hidden {
-  display: none !important;
-}
-
-.minimized .history-list,
-.minimized .legend-items {
-  display: none;
-}
     
+    /* Panel Controls */
+    .close-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      font-weight: bold;
+      cursor: pointer;
+      color: #666;
+      line-height: 1;
+    }
+    .close-btn:hover { color: #000; }
+    .toggle-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      margin-left: 8px;
+      color: #555;
+      font-size: 1rem;
+    }
+    .hidden { display: none !important; }
+    .minimized .history-list,
+    .minimized .legend-items { display: none; }
   </style>
 </head>
 <body>
@@ -248,9 +212,7 @@
     <button class="toggle-btn" onclick="togglePanel('legendPanel')">&#8211;</button>
   </div>
 <div class="legend-items">
-    <div class="legend-item"><div class="color-box" style="background: #e63946;"></div> Canada</div>
-    <div class="legend-item"><div class="color-box" style="background: #1d3557;"></div> United States</div>
-    <div class="legend-item"><div class="color-box" style="background: #a0522d;"></div> Mexico</div>
+    <div class="legend-item"><div class="color-box" style="background: #e63946;"></div> Sovereign Nation</div>
     <div class="legend-item"><div class="color-box" style="background: #8e24aa;"></div> Independent State</div>
     <div class="legend-item"><div class="color-box" style="background: #43a047;"></div> Independent Union</div>
 </div>
@@ -269,45 +231,73 @@
     let rawFeatures = [];
     let isReplaying = false;
 
+    // Adjusted for a global starting view
     const map = L.map('map', {
-      center: [48.0, -96.0],
-      zoom: 4,
-      minZoom: 3,
+      center: [20.0, 0.0],
+      zoom: 2,
+      minZoom: 2,
       maxZoom: 7
     });
 
-    // Color palette for standalone single-member independent nations
     const INDEPENDENT_PALETTE = [
       '#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2', 
       '#6a1b9a', '#4a148c', '#d81b60', '#c2185b', 
       '#ad1457', '#5e35b1', '#3f51b5', '#673ab7'
     ];
 
-// Color palette for multi-member independent unions (Distinct shades of green)
-const UNION_PALETTE = [
-  '#43a047', '#2e7d32', '#66bb6a', '#81c784', 
-  '#00897b', '#00acc1', '#26a69a', '#00796b', 
-  '#558b2f', '#7cb342', '#9ccc65', '#33691e'
-];
+    const UNION_PALETTE = [
+      '#43a047', '#2e7d32', '#66bb6a', '#81c784', 
+      '#00897b', '#00acc1', '#26a69a', '#00796b', 
+      '#558b2f', '#7cb342', '#9ccc65', '#33691e'
+    ];
+    
+    // Explicit colors for some major nations, everything else is dynamically hashed
+    const SOVEREIGN_COLORS = {
+      'Canada': '#e63946',
+      'United States of America': '#1d3557',
+      'Mexico': '#a0522d',
+      'United Kingdom': '#2b2d42',
+      'France': '#00509d',
+      'Germany': '#ffb703',
+      'Russia': '#8b0000',
+      'China': '#d00000',
+      'Brazil': '#38b000',
+      'Australia': '#ff9f1c',
+      'India': '#f4a261',
+      'Japan': '#bc4749'
+    };
 
     function getFeatureId(feature) {
-      return feature.properties.iso_3166_2 || feature.properties.name;
+      return feature.properties.iso_3166_2 || feature.properties.name || feature.properties.adm1_code;
     }
 
-    // Returns active country details object for a given feature
+    // Generates a deterministic hex color based on a string
+    function getSovereignColor(name) {
+      if (SOVEREIGN_COLORS[name]) return SOVEREIGN_COLORS[name];
+      if (!name) return '#457b9d';
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      // Keep colors slightly muted by bitwise ANDing and adding offset
+      const c = (hash & 0x00777777) + 0x444444; 
+      return '#' + c.toString(16).padStart(6, '0');
+    }
+
     function getCountryData(feature) {
       const id = getFeatureId(feature);
       if (stateStatus[id]) {
         return stateStatus[id];
       }
+      // Fallback property mapping for broader datasets
+      const adminName = feature.properties.admin || feature.properties.sovereignt || 'Unknown';
       return {
         type: 'SOVEREIGN',
-        key: feature.properties.admin,
-        name: feature.properties.admin
+        key: adminName,
+        name: adminName
       };
     }
 
-    // Returns the total number of features belonging to a specific nation key
     function getMemberCount(countryKey) {
       let count = 0;
       rawFeatures.forEach(feat => {
@@ -334,16 +324,13 @@ const UNION_PALETTE = [
         }
       }
       
-        if (country.key === 'Canada') return '#e63946';
-        if (country.key === 'United States of America') return '#1d3557';
-        if (country.key === 'Mexico') return '#a0522d'; // Updated to warm terracotta/brown
-        return '#457b9d';
+      return getSovereignColor(country.key);
     }
 
     function style(feature) {
       return {
         fillColor: getFeatureColor(feature),
-        weight: 1.5,
+        weight: 1.0,
         opacity: 1,
         color: '#ffffff',
         fillOpacity: 0.75
@@ -364,7 +351,6 @@ const UNION_PALETTE = [
       geojsonLayer.resetStyle(e.target);
     }
 
-    // Scans neighbor features via bounding box + centroid proximity
     function getNeighboringEntities(targetFeature) {
       const neighbors = new Map();
       const targetId = getFeatureId(targetFeature);
@@ -378,6 +364,7 @@ const UNION_PALETTE = [
 
         try {
           const featBbox = turf.bbox(feat);
+          // Check for bounding box overlap first for performance
           const bboxOverlap = !(
             targetBbox[0] > featBbox[2] + 0.5 ||
             targetBbox[2] < featBbox[0] - 0.5 ||
@@ -389,7 +376,8 @@ const UNION_PALETTE = [
             const featCenter = turf.centroid(feat);
             const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
 
-            if (dist < 1200) {
+            // Using 1000km to support large global subdivisions
+            if (dist < 1000) {
               const neighborCountry = getCountryData(feat);
               if (neighborCountry.key !== currentCountry.key) {
                 neighbors.set(neighborCountry.key, neighborCountry);
@@ -405,12 +393,11 @@ const UNION_PALETTE = [
     function updatePanel(feature) {
       if (!feature) return;
 
-      // Make sure the panel is visible when a state is clicked
       document.getElementById('infoPanel').classList.remove('hidden');
       
       const properties = feature.properties;
       const id = getFeatureId(feature);
-      const name = properties.name;
+      const name = properties.name || properties.name_en || 'Unknown Region';
       const country = getCountryData(feature);
 
       const regionNameEl = document.getElementById('regionName');
@@ -420,65 +407,56 @@ const UNION_PALETTE = [
       regionNameEl.innerText = name;
       actionsEl.innerHTML = '';
 
-      // Determine if this region is a Standalone Independent state (exactly 1 member)
       let isStandalone = false;
       if (country.type === 'INDEPENDENT') {
         isStandalone = (getMemberCount(country.key) === 1);
       }
 
+      // Format clean display names
+      const formatName = (str) => str === 'United States of America' ? 'USA' : str;
+
       if (isStandalone) {
-        // RULE 1: Standalone Independents (1 member) can JOIN neighbors, but CANNOT "Declare Independence" again.
-        regionDetailsEl.innerHTML = `<span class="status-badge status-indep">${country.name}</span>`;
+        // Standalone independent workflow
+        const color = getFeatureColor(feature);
+        regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${color};">${country.name}</span>`;
         
         const neighbors = getNeighboringEntities(feature);
         if (neighbors.length > 0) {
           neighbors.forEach(targetCountry => {
             const btn = document.createElement('button');
             btn.disabled = isReplaying;
-
+            btn.className = 'action-btn';
+            
             if (targetCountry.type === 'INDEPENDENT') {
-              btn.className = 'action-btn btn-join-indep';
-              btn.innerText = `Join ${targetCountry.name}`;
-              btn.onclick = () => changeStatus(feature, targetCountry);
+              btn.style.background = '#4a148c'; // Universal Join Union color
+              btn.innerText = `Join ${formatName(targetCountry.name)}`;
             } else {
-              btn.className = 'action-btn ' + (
-                targetCountry.key === 'Canada' ? 'btn-canada' : 
-                targetCountry.key === 'United States of America' ? 'btn-us' : 'btn-mexico'
-              );
-              btn.innerText = `Join ${targetCountry.key === 'United States of America' ? 'USA' : targetCountry.key}`;
-              btn.onclick = () => changeStatus(feature, targetCountry);
+              btn.style.background = getSovereignColor(targetCountry.key);
+              btn.innerText = `Join ${formatName(targetCountry.key)}`;
             }
+            
+            btn.onclick = () => changeStatus(feature, targetCountry);
             actionsEl.appendChild(btn);
           });
         } else {
           actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
         }
     } else {
-          // RULE 2: If it is part of ANY multi-state nation (Sovereign OR Joined to another Independent),
-          // it MUST declare independence first. It CANNOT join another nation directly.
-          let badgeClass = 'status-indep';
-          let displayName = country.name;
-          if (country.type === 'SOVEREIGN') {
-              badgeClass = country.key === 'Canada' ? 'status-canada' : country.key === 'United States of America' ? 'status-us' : 'status-mexico';
-              displayName = country.key === 'United States of America' ? 'United States' : country.key;
-          }
-          regionDetailsEl.innerHTML = `<span class="status-badge ${badgeClass}">${displayName}</span>`;
+          // Part of multi-state/sovereign nation workflow
+          let badgeColor = country.type === 'SOVEREIGN' ? getSovereignColor(country.key) : getFeatureColor(feature);
+          regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${badgeColor};">${formatName(country.name)}</span>`;
+          
           const btn = document.createElement('button');
           btn.disabled = isReplaying;
-          btn.className = 'action-btn btn-indep';
+          btn.className = 'action-btn';
+          btn.style.background = '#7b1fa2'; // Independence purple
           btn.innerText = 'Declare Independence';
           btn.onclick = () => {
-              // Cheeky Canada check!
-              if (country.key === 'Canada') {
-                  alert('Canada is NOT for sale!');
-                  return;
-              }
               const indepCountry = { type: 'INDEPENDENT', key: `INDEP:${id}`, name: name };
               changeStatus(feature, indepCountry);
           };
           actionsEl.appendChild(btn);
       }
-            
     }
 
     function changeStatus(feature, targetCountry, recordHistory = true) {
@@ -486,15 +464,12 @@ const UNION_PALETTE = [
       const prevCountry = getCountryData(feature);
       
       stateStatus[id] = targetCountry;
-      
-      // Setting style forces a re-evaluation of colors for ALL features.
-      // This automatically re-colors nations when their member count goes from 1 to 2, or 2 to 1.
       geojsonLayer.setStyle(style);
 
       if (recordHistory) {
         historyLog.push({
           id: id,
-          name: feature.properties.name,
+          name: feature.properties.name || feature.properties.name_en || 'Region',
           from: prevCountry.name === 'United States of America' ? 'USA' : prevCountry.name,
           to: targetCountry.name === 'United States of America' ? 'USA' : targetCountry.name,
           targetCountryObj: targetCountry
@@ -560,47 +535,21 @@ const UNION_PALETTE = [
       });
     }
 
-    // Dismisses the region detail panel
     function closeInfoPanel() {
       document.getElementById('infoPanel').classList.add('hidden');
-      selectedFeature = null; // Clears the selection
+      selectedFeature = null; 
     }
     
-    // Toggles the minimize/maximize state of permanent panels
     function togglePanel(panelId) {
       document.getElementById(panelId).classList.toggle('minimized');
     }
 
-    
-
-// Load GeoJSON Boundaries (using 10m dataset filtered to North America)
-    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson')
-      .then(res => res.json())
-      .then(data => {
-        rawFeatures = data.features.filter(f => 
-          ['United States of America', 'Canada', 'Mexico'].includes(f.properties.admin)
-        );
-
-        geojsonLayer = L.geoJSON(rawFeatures, {
-          style: style,
-          onEachFeature: onEachFeature
-        }).addTo(map);
-      })
-      .catch(err => {
-        console.error('Error loading GeoJSON:', err);
-        document.getElementById('regionDetails').innerText = 'Failed to load spatial boundaries data.';
-      });
-
-  /*
-// Load GeoJSON Boundaries
-     // much faster but only includes US and Canada
+    // Load GLOBAL GeoJSON Boundaries (using 50m dataset for better performance)
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson') 
       .then(res => res.json())
       .then(data => {
-        rawFeatures = data.features.filter(f => {
-          const admin = f.properties.admin || f.properties.sovereignt;
-          return ['United States of America', 'Canada', 'Mexico'].includes(admin);
-        });
+        // Removed the filter logic entirely so all countries are loaded
+        rawFeatures = data.features;
 
         geojsonLayer = L.geoJSON(rawFeatures, {
           style: style,
@@ -611,7 +560,6 @@ const UNION_PALETTE = [
         console.error('Error loading GeoJSON:', err);
         document.getElementById('regionDetails').innerText = 'Failed to load spatial boundaries data.';
       });
-      */
     
   </script>
 </body>

@@ -553,13 +553,20 @@
         onEachFeature: onEachFeature
       }).addTo(map);
 
-      // Auto-zoom map to fit the bounds of the newly loaded continent
-      if (rawFeatures.length > 0) {
-        map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
-      }
-      
-      closeInfoPanel();
-    }
+    // Auto-zoom map to fit the bounds of the newly loaded continent
+          if (rawFeatures.length > 0) {
+            // Use 0 padding to maximize space
+            map.fitBounds(geojsonLayer.getBounds(), { padding: [0, 0] });
+            
+            // Force the map to zoom in 1 extra level closer 
+            // (Wait 100ms so it doesn't conflict with the fitBounds animation)
+            setTimeout(() => {
+              map.zoomIn(1); // Change this to 2 if you want it even closer!
+            }, 100);
+          }
+          
+          closeInfoPanel();
+        }
 
     // Initialize: Fetch the high-res 10m dataset once, store it, and trigger the initial load
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson') 

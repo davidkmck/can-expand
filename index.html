@@ -363,8 +363,8 @@
       return Array.from(neighbors.values());
     }
     */
-    function getNeighboringEntities(targetFeature) {
-  const neighbors = new Map();
+function getNeighboringEntities(targetFeature) {
+  const neighborMap = new Map();
   const targetId = getFeatureId(targetFeature);
   const targetCenter = turf.centroid(targetFeature);
   const currentCountry = getCountryData(targetFeature);
@@ -381,12 +381,20 @@
       if (dist < 2500) {
         const neighborCountry = getCountryData(feat);
         if (neighborCountry.key !== currentCountry.key) {
-          neighbors.set(neighborCountry.key, neighborCountry);
+          // Keep track of the minimum distance to each distinct country/entity key
+          if (!neighborMap.has(neighborCountry.key) || dist < neighborMap.get(neighborCountry.key).dist) {
+            neighborMap.set(neighborCountry.key, { country: neighborCountry, dist: dist });
+          }
         }
       }
     } catch (e) {}
   });
-  return Array.from(neighbors.values());
+
+  // Convert map values to an array, sort by distance closest-first, and take the top 4
+  return Array.from(neighborMap.values())
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 4)
+    .map(item => item.country);
 }
 
     function updatePanel(feature) {

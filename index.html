@@ -329,11 +329,9 @@
       geojsonLayer.resetStyle(e.target);
     }
 
-    /* old version
-    function getNeighboringEntities(targetFeature) {
-      const neighbors = new Map();
+    function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99) {
+      const neighborMap = new Map();
       const targetId = getFeatureId(targetFeature);
-      const targetBbox = turf.bbox(targetFeature);
       const targetCenter = turf.centroid(targetFeature);
       const currentCountry = getCountryData(targetFeature);
 
@@ -342,61 +340,25 @@
         if (featId === targetId) return;
 
         try {
-          const featBbox = turf.bbox(feat);
-          const bboxOverlap = !(
-            targetBbox[0] > featBbox[2] + 0.5 || targetBbox[2] < featBbox[0] - 0.5 ||
-            targetBbox[1] > featBbox[3] + 0.5 || targetBbox[3] < featBbox[1] - 0.5
-          );
-
-          if (bboxOverlap) {
-            const featCenter = turf.centroid(feat);
-            const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
-            if (dist < 1000) {
-              const neighborCountry = getCountryData(feat);
-              if (neighborCountry.key !== currentCountry.key) {
-                neighbors.set(neighborCountry.key, neighborCountry);
+          const featCenter = turf.centroid(feat);
+          const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
+          
+          if (dist < maxDistance) {
+            const neighborCountry = getCountryData(feat);
+            if (neighborCountry.key !== currentCountry.key) {
+              if (!neighborMap.has(neighborCountry.key) || dist < neighborMap.get(neighborCountry.key).dist) {
+                neighborMap.set(neighborCountry.key, { country: neighborCountry, dist: dist });
               }
             }
           }
         } catch (e) {}
       });
-      return Array.from(neighbors.values());
+
+      return Array.from(neighborMap.values())
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, limit)
+        .map(item => item.country);
     }
-    */
-function getNeighboringEntities(targetFeature) {
-  const neighborMap = new Map();
-  const targetId = getFeatureId(targetFeature);
-  const targetCenter = turf.centroid(targetFeature);
-  const currentCountry = getCountryData(targetFeature);
-
-  rawFeatures.forEach(feat => {
-    const featId = getFeatureId(feat);
-    if (featId === targetId) return;
-
-    try {
-      // Use turf.nearestPointOnLine or distance to bounding box / polygon vertices for true closeness,
-      // or measure distance from target center to the feature's bbox / centroid.
-      const featCenter = turf.centroid(feat);
-      const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
-      
-      // Increased to 4500 km to comfortably bridge Pacific islands to North America
-      if (dist < 4500) {
-        const neighborCountry = getCountryData(feat);
-        if (neighborCountry.key !== currentCountry.key) {
-          if (!neighborMap.has(neighborCountry.key) || dist < neighborMap.get(neighborCountry.key).dist) {
-            neighborMap.set(neighborCountry.key, { country: neighborCountry, dist: dist });
-          }
-        }
-      }
-    } catch (e) {}
-  });
-
-  // Sort strictly by closest distance and take the top 4
-  return Array.from(neighborMap.values())
-    .sort((a, b) => a.dist - b.dist)
-    .slice(0, 4)
-    .map(item => item.country);
-}
 
     function updatePanel(feature) {
       if (!feature) return;
@@ -424,9 +386,11 @@ function getNeighboringEntities(targetFeature) {
       if (isStandalone) {
         const color = getFeatureColor(feature);
         regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${color};">${country.name}</span>`;
+
+        const neighbors = getNeighboringEntities(feature, 100); // Check for true immediate physical neighbors (within 100km)
         
-        const neighbors = getNeighboringEntities(feature);
         if (neighbors.length > 0) {
+          // Standard case: It has physical neighbors, only show those immediate borders
           neighbors.forEach(targetCountry => {
             const btn = document.createElement('button');
             btn.disabled = isReplaying;
@@ -444,35 +408,29 @@ function getNeighboringEntities(targetFeature) {
           });
         } 
         else {
-    // Fallback: If it's an isolated island/territory, allow joining any country in the current view
-    const availableCountries = new Map();
-    rawFeatures.forEach(feat => {
-        const featCountry = getCountryData(feat);
-        if (featCountry.key !== country.key) {
-            availableCountries.set(featCountry.key, featCountry);
+          // Island / Isolated fallback: If it has zero immediate physical neighbors, 
+          // allow long-distance diplomatic reach (up to 4500 km, closest 4)
+          const distantNeighbors = getNeighboringEntities(feature, 4500, 4);
+
+          if (distantNeighbors.length > 0) {
+            const header = document.createElement('p');
+            header.style.cssText = 'font-size:0.8rem; font-weight:600; margin: 4px 0; color:#555;';
+            header.innerText = 'Diplomatic Reach (Island Transit):';
+            actionsEl.appendChild(header);
+
+            distantNeighbors.forEach(targetCountry => {
+              const btn = document.createElement('button');
+              btn.disabled = isReplaying;
+              btn.className = 'action-btn';
+              btn.style.background = targetCountry.type === 'INDEPENDENT' ? '#4a148c' : getSovereignColor(targetCountry.key);
+              btn.innerText = `Join ${formatName(targetCountry.name)}`;
+              btn.onclick = () => changeStatus(feature, targetCountry);
+              actionsEl.appendChild(btn);
+            });
+          } else {
+            actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
+          }
         }
-    });
-
-    if (availableCountries.size > 0) {
-        const header = document.createElement('p');
-        header.style.cssText = 'font-size:0.8rem; font-weight:600; margin: 4px 0; color:#555;';
-        header.innerText = 'Diplomatic Reach (Non-adjacent):';
-        actionsEl.appendChild(header);
-
-        // Limit or list available options (or create a searchable dropdown / scrollable list if there are many)
-        Array.from(availableCountries.values()).slice(0, 5).forEach(targetCountry => {
-            const btn = document.createElement('button');
-            btn.disabled = isReplaying;
-            btn.className = 'action-btn';
-            btn.style.background = targetCountry.type === 'INDEPENDENT' ? '#4a148c' : getSovereignColor(targetCountry.key);
-            btn.innerText = `Join ${formatName(targetCountry.name)}`;
-            btn.onclick = () => changeStatus(feature, targetCountry);
-            actionsEl.appendChild(btn);
-        });
-    } else {
-        actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
-    }
-}
       } else {
         let badgeColor = country.type === 'SOVEREIGN' ? getSovereignColor(country.key) : getFeatureColor(feature);
         regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${badgeColor};">${formatName(country.name)}</span>`;
@@ -483,7 +441,6 @@ function getNeighboringEntities(targetFeature) {
         btn.style.background = '#7b1fa2'; 
         btn.innerText = 'Declare Independence';
         btn.onclick = () => {
-            // Cheeky Canada Check Restored Here:
             if (country.key === 'Canada') {
               alert('Canada is NOT for sale!');
               return;

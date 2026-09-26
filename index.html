@@ -190,6 +190,7 @@
       <option value="Asia">Asia</option>
       <option value="Africa">Africa</option>
       <option value="Oceania">Oceania</option>
+      <option value="Middle East">Middle East</option>
     </select>
   </div>
 
@@ -245,7 +246,12 @@
       "Europe": ["United Kingdom", "France", "Germany", "Italy", "Spain", "Poland", "Ukraine", "Sweden", "Norway", "Finland", "Belarus", "Romania", "Greece", "Netherlands", "Belgium", "Czechia", "Portugal", "Hungary", "Austria", "Switzerland", "Bulgaria", "Denmark", "Slovakia", "Ireland", "Croatia", "Moldova", "Bosnia and Herzegovina", "Albania", "Lithuania", "Slovenia", "Latvia", "Estonia", "Montenegro", "Luxembourg", "Malta", "Iceland", "Serbia", "North Macedonia", "Kosovo"],
       "Asia": ["Russia", "China", "India", "Japan", "South Korea", "North Korea", "Indonesia", "Iran", "Turkey", "Saudi Arabia", "Pakistan", "Vietnam", "Thailand", "Myanmar", "Iraq", "Afghanistan", "Uzbekistan", "Malaysia", "Yemen", "Nepal", "Syria", "Sri Lanka", "Kazakhstan", "Cambodia", "Jordan", "Azerbaijan", "United Arab Emirates", "Tajikistan", "Israel", "Laos", "Lebanon", "Kyrgyzstan", "Turkmenistan", "Singapore", "Oman", "State of Palestine", "Kuwait", "Georgia", "Mongolia", "Armenia", "Qatar", "Bahrain", "Cyprus", "Taiwan", "Philippines", "Bangladesh"],
       "Africa": ["Nigeria", "Ethiopia", "Egypt", "Democratic Republic of the Congo", "Tanzania", "South Africa", "Kenya", "Uganda", "Algeria", "Sudan", "Morocco", "Angola", "Mozambique", "Ghana", "Madagascar", "Cameroon", "Côte d'Ivoire", "Niger", "Burkina Faso", "Mali", "Malawi", "Zambia", "Senegal", "Chad", "Somalia", "Zimbabwe", "Guinea", "Rwanda", "Benin", "Burundi", "Tunisia", "South Sudan", "Togo", "Sierra Leone", "Libya", "Republic of Congo", "Liberia", "Central African Republic", "Mauritania", "Eritrea", "Namibia", "Gambia", "Botswana", "Gabon", "Lesotho", "Guinea-Bissau", "Equatorial Guinea", "Mauritius", "Eswatini", "Djibouti", "Comoros", "Cabo Verde", "Sao Tome and Principe", "Seychelles"],
-      "Oceania": ["Australia", "New Zealand", "Papua New Guinea", "Fiji", "Solomon Islands", "Micronesia", "Vanuatu", "Samoa", "Kiribati", "Tonga", "Marshall Islands", "Palau", "Tuvalu", "Nauru", "New Caledonia", "French Polynesia"]
+      "Oceania": ["Australia", "New Zealand", "Papua New Guinea", "Fiji", "Solomon Islands", "Micronesia", "Vanuatu", "Samoa", "Kiribati", "Tonga", "Marshall Islands", "Palau", "Tuvalu", "Nauru", "New Caledonia", "French Polynesia"],
+      "Middle East": [
+        "Saudi Arabia", "Iran", "Iraq", "Turkey", "Israel", "Jordan", 
+        "Syria", "United Arab Emirates", "Yemen", "Oman", "Kuwait", 
+        "Qatar", "Bahrain", "Lebanon", "State of Palestine", "Cyprus"
+    ]
     };
 
     // --- CONTINENT BOUNDS (Perfect framing for each region) ---
@@ -255,7 +261,8 @@
       "Europe": [[34, -12], [71, 45]],
       "Asia": [[-11, 26], [75, 145]],
       "Africa": [[-35, -20], [38, 55]],
-      "Oceania": [[-48, 110], [5, 180]]
+      "Oceania": [[-48, 110], [5, 180]],
+      "Middle East": [[12, 34], [42, 63]]
     };
 
     const INDEPENDENT_PALETTE = ['#9c27b0', '#ab47bc', '#8e24aa', '#7b1fa2', '#6a1b9a', '#4a148c', '#d81b60', '#c2185b', '#ad1457', '#5e35b1', '#3f51b5', '#673ab7'];

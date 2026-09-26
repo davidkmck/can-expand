@@ -406,9 +406,37 @@
             btn.onclick = () => changeStatus(feature, targetCountry);
             actionsEl.appendChild(btn);
           });
-        } else {
-          actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
+        } 
+        else {
+    // Fallback: If it's an isolated island/territory, allow joining any country in the current view
+    const availableCountries = new Map();
+    rawFeatures.forEach(feat => {
+        const featCountry = getCountryData(feat);
+        if (featCountry.key !== country.key) {
+            availableCountries.set(featCountry.key, featCountry);
         }
+    });
+
+    if (availableCountries.size > 0) {
+        const header = document.createElement('p');
+        header.style.cssText = 'font-size:0.8rem; font-weight:600; margin: 4px 0; color:#555;';
+        header.innerText = 'Diplomatic Reach (Non-adjacent):';
+        actionsEl.appendChild(header);
+
+        // Limit or list available options (or create a searchable dropdown / scrollable list if there are many)
+        Array.from(availableCountries.values()).slice(0, 5).forEach(targetCountry => {
+            const btn = document.createElement('button');
+            btn.disabled = isReplaying;
+            btn.className = 'action-btn';
+            btn.style.background = targetCountry.type === 'INDEPENDENT' ? '#4a148c' : getSovereignColor(targetCountry.key);
+            btn.innerText = `Join ${formatName(targetCountry.name)}`;
+            btn.onclick = () => changeStatus(feature, targetCountry);
+            actionsEl.appendChild(btn);
+        });
+    } else {
+        actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
+    }
+}
       } else {
         let badgeColor = country.type === 'SOVEREIGN' ? getSovereignColor(country.key) : getFeatureColor(feature);
         regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${badgeColor};">${formatName(country.name)}</span>`;

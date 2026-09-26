@@ -329,6 +329,7 @@
       geojsonLayer.resetStyle(e.target);
     }
 
+    /* old version
     function getNeighboringEntities(targetFeature) {
       const neighbors = new Map();
       const targetId = getFeatureId(targetFeature);
@@ -361,6 +362,32 @@
       });
       return Array.from(neighbors.values());
     }
+    */
+    function getNeighboringEntities(targetFeature) {
+  const neighbors = new Map();
+  const targetId = getFeatureId(targetFeature);
+  const targetCenter = turf.centroid(targetFeature);
+  const currentCountry = getCountryData(targetFeature);
+
+  rawFeatures.forEach(feat => {
+    const featId = getFeatureId(feat);
+    if (featId === targetId) return;
+
+    try {
+      const featCenter = turf.centroid(feat);
+      const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
+      
+      // 2500 km allows island regions like Greenland to connect across water
+      if (dist < 2500) {
+        const neighborCountry = getCountryData(feat);
+        if (neighborCountry.key !== currentCountry.key) {
+          neighbors.set(neighborCountry.key, neighborCountry);
+        }
+      }
+    } catch (e) {}
+  });
+  return Array.from(neighbors.values());
+}
 
     function updatePanel(feature) {
       if (!feature) return;

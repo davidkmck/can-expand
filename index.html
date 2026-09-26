@@ -374,14 +374,15 @@ function getNeighboringEntities(targetFeature) {
     if (featId === targetId) return;
 
     try {
+      // Use turf.nearestPointOnLine or distance to bounding box / polygon vertices for true closeness,
+      // or measure distance from target center to the feature's bbox / centroid.
       const featCenter = turf.centroid(feat);
       const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
       
-      // 2500 km allows island regions like Greenland to connect across water
-      if (dist < 2500) {
+      // Increased to 4500 km to comfortably bridge Pacific islands to North America
+      if (dist < 4500) {
         const neighborCountry = getCountryData(feat);
         if (neighborCountry.key !== currentCountry.key) {
-          // Keep track of the minimum distance to each distinct country/entity key
           if (!neighborMap.has(neighborCountry.key) || dist < neighborMap.get(neighborCountry.key).dist) {
             neighborMap.set(neighborCountry.key, { country: neighborCountry, dist: dist });
           }
@@ -390,7 +391,7 @@ function getNeighboringEntities(targetFeature) {
     } catch (e) {}
   });
 
-  // Convert map values to an array, sort by distance closest-first, and take the top 4
+  // Sort strictly by closest distance and take the top 4
   return Array.from(neighborMap.values())
     .sort((a, b) => a.dist - b.dist)
     .slice(0, 4)

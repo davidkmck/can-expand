@@ -517,7 +517,7 @@
         const entry = historyLog[step];
         const feat = rawFeatures.find(f => getFeatureId(f) === entry.id);
         if (feat) {
-          stateStatus[feat.id] = entry.targetCountryObj;
+          stateStatus[getFeatureId(feat)] = entry.targetCountryObj;
           changeStatus(feat, entry.targetCountryObj, false);
         }
         step++;

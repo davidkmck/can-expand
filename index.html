@@ -239,6 +239,7 @@
       maxZoom: 12
     });
 
+    /* old
     // --- CONTINENT MAPPING ---
     const CONTINENTS = {
       "North America": ["United States of America", "Canada", "Mexico", "Guatemala", "Honduras", "El Salvador", "Nicaragua", "Costa Rica", "Panama", "Belize", "Cuba", "The Bahamas", "Haiti", "Dominican Republic", "Jamaica", "Greenland", "Puerto Rico"],
@@ -252,6 +253,27 @@
         "Syria", "United Arab Emirates", "Yemen", "Oman", "Kuwait", 
         "Qatar", "Bahrain", "Lebanon", "State of Palestine", "Palestine", "West Bank", "Gaza", "Cyprus"
     ]
+    };
+*/
+    // --- CONTINENT MAPPING ---
+    const CONTINENTS = {
+      "North America": ["United States of America", "Canada", "Mexico", "Guatemala", "Honduras", "El Salvador", "Nicaragua", "Costa Rica", "Panama", "Belize", "Cuba", "The Bahamas", "Haiti", "Dominican Republic", "Jamaica", "Greenland", "Puerto Rico"],
+      "South America": ["Brazil", "Argentina", "Colombia", "Peru", "Chile", "Venezuela", "Ecuador", "Bolivia", "Paraguay", "Uruguay", "Guyana", "Suriname", "Trinidad and Tobago", "Falkland Islands"],
+      "Europe": ["United Kingdom", "France", "Germany", "Italy", "Spain", "Poland", "Ukraine", "Sweden", "Norway", "Finland", "Belarus", "Romania", "Greece", "Netherlands", "Belgium", "Czechia", "Portugal", "Hungary", "Austria", "Switzerland", "Bulgaria", "Denmark", "Slovakia", "Ireland", "Croatia", "Moldova", "Bosnia and Herzegovina", "Albania", "Lithuania", "Slovenia", "Latvia", "Estonia", "Montenegro", "Luxembourg", "Malta", "Iceland", "Serbia", "North Macedonia", "Kosovo"],
+      "Asia": [
+        "Russia", "China", "India", "Japan", "South Korea", "North Korea", 
+        "Indonesia", "Pakistan", "Vietnam", "Thailand", "Myanmar", "Afghanistan", 
+        "Uzbekistan", "Malaysia", "Nepal", "Sri Lanka", "Kazakhstan", "Cambodia", 
+        "Azerbaijan", "Tajikistan", "Laos", "Kyrgyzstan", "Turkmenistan", "Singapore", 
+        "Georgia", "Mongolia", "Armenia", "Taiwan", "Philippines", "Bangladesh"
+      ],
+      "Africa": ["Nigeria", "Ethiopia", "Egypt", "Democratic Republic of the Congo", "Tanzania", "South Africa", "Kenya", "Uganda", "Algeria", "Sudan", "Morocco", "Angola", "Mozambique", "Ghana", "Madagascar", "Cameroon", "Côte d'Ivoire", "Niger", "Burkina Faso", "Mali", "Malawi", "Zambia", "Senegal", "Chad", "Somalia", "Zimbabwe", "Guinea", "Rwanda", "Benin", "Burundi", "Tunisia", "South Sudan", "Togo", "Sierra Leone", "Libya", "Republic of Congo", "Liberia", "Central African Republic", "Mauritania", "Eritrea", "Namibia", "Gambia", "Botswana", "Gabon", "Lesotho", "Guinea-Bissau", "Equatorial Guinea", "Mauritius", "Eswatini", "Djibouti", "Comoros", "Cabo Verde", "Sao Tome and Principe", "Seychelles"],
+      "Oceania": ["Australia", "New Zealand", "Papua New Guinea", "Fiji", "Solomon Islands", "Micronesia", "Vanuatu", "Samoa", "Kiribati", "Tonga", "Marshall Islands", "Palau", "Tuvalu", "Nauru", "New Caledonia", "French Polynesia"],
+      "Middle East": [
+        "Saudi Arabia", "Iran", "Iraq", "Turkey", "Israel", "Jordan", 
+        "Syria", "United Arab Emirates", "Yemen", "Oman", "Kuwait", 
+        "Qatar", "Bahrain", "Lebanon", "State of Palestine", "Palestine", "West Bank", "Gaza", "Cyprus"
+      ]
     };
 
     // --- CONTINENT BOUNDS (Perfect framing for each region) ---

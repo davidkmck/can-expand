@@ -329,36 +329,48 @@
       geojsonLayer.resetStyle(e.target);
     }
 
-    function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99) {
-      const neighborMap = new Map();
-      const targetId = getFeatureId(targetFeature);
-      const targetCenter = turf.centroid(targetFeature);
-      const currentCountry = getCountryData(targetFeature);
+function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, requireBboxOverlap = false) {
+  const neighborMap = new Map();
+  const targetId = getFeatureId(targetFeature);
+  const targetCenter = turf.centroid(targetFeature);
+  const targetBbox = turf.bbox(targetFeature); // Grab the bounding box
+  const currentCountry = getCountryData(targetFeature);
 
-      rawFeatures.forEach(feat => {
-        const featId = getFeatureId(feat);
-        if (featId === targetId) return;
+  rawFeatures.forEach(feat => {
+    const featId = getFeatureId(feat);
+    if (featId === targetId) return;
 
-        try {
-          const featCenter = turf.centroid(feat);
-          const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
-          
-          if (dist < maxDistance) {
-            const neighborCountry = getCountryData(feat);
-            if (neighborCountry.key !== currentCountry.key) {
-              if (!neighborMap.has(neighborCountry.key) || dist < neighborMap.get(neighborCountry.key).dist) {
-                neighborMap.set(neighborCountry.key, { country: neighborCountry, dist: dist });
-              }
-            }
+    try {
+      if (requireBboxOverlap) {
+        const featBbox = turf.bbox(feat);
+        // Add a 0.5 degree buffer to catch closely neighboring borders
+        const bboxOverlap = !(
+          targetBbox[0] > featBbox[2] + 0.5 || targetBbox[2] < featBbox[0] - 0.5 ||
+          targetBbox[1] > featBbox[3] + 0.5 || targetBbox[3] < featBbox[1] - 0.5
+        );
+        // If we require them to touch/overlap and they don't, skip this feature
+        if (!bboxOverlap) return; 
+      }
+
+      const featCenter = turf.centroid(feat);
+      const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
+      
+      if (dist < maxDistance) {
+        const neighborCountry = getCountryData(feat);
+        if (neighborCountry.key !== currentCountry.key) {
+          if (!neighborMap.has(neighborCountry.key) || dist < neighborMap.get(neighborCountry.key).dist) {
+            neighborMap.set(neighborCountry.key, { country: neighborCountry, dist: dist });
           }
-        } catch (e) {}
-      });
+        }
+      }
+    } catch (e) {}
+  });
 
-      return Array.from(neighborMap.values())
-        .sort((a, b) => a.dist - b.dist)
-        .slice(0, limit)
-        .map(item => item.country);
-    }
+  return Array.from(neighborMap.values())
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, limit)
+    .map(item => item.country);
+}
 
     function updatePanel(feature) {
       if (!feature) return;
@@ -387,7 +399,8 @@
         const color = getFeatureColor(feature);
         regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${color};">${country.name}</span>`;
 
-        const neighbors = getNeighboringEntities(feature, 100); // Check for true immediate physical neighbors (within 100km)
+// Check for immediate physical neighbors (Wide centroid distance, BUT strict border overlap required)
+        const neighbors = getNeighboringEntities(feature, 2500, 99, true);
         
         if (neighbors.length > 0) {
           // Standard case: It has physical neighbors, only show those immediate borders

@@ -94,7 +94,7 @@ function refreshCountryLabels() {
         const id = getFeatureId(feat);
         // Look up its final destination status rather than intermediate steps
        // const resolvedCountry = finalState[id] || getCountryData(feat);
-       const resolvedCountry = (finalState && finalState[id]) ? finalState[id] : getCountryData(feat);
+        const resolvedCountry = (finalState && finalState[id]) ? finalState[id] : (stateStatus[id] || getCountryData(feat));
         
         const groupKey = resolvedCountry.key;
         

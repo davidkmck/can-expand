@@ -877,7 +877,7 @@
           try { activeGif.running = false; } catch (e) {}
         }
 
-        const gif = new GIF({
+        const activeGif = new GIF({
           workers: isMobile ? 0 : 2,
           quality: isMobile ? 40 : 50, // Higher number = much faster compression pass
           width: targetWidth,

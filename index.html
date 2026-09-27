@@ -883,7 +883,7 @@ async function exportGIF() {
       refreshCountryLabels();
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      const captureFrame = async () => {
+      const captureFrame = async (isFinal = false) => {
         const canvas = await html2canvas(mapElement, { 
           useCORS: true,
           scale: 1,
@@ -973,6 +973,9 @@ async function exportGIF() {
       });
 
       gif.render();
+
+  // Capture the final resulting state with the pause delay
+      await captureFrame(true);
     }
     
     // Initialize

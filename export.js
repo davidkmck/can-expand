@@ -93,7 +93,9 @@ function refreshCountryLabels() {
       rawFeatures.forEach(feat => {
         const id = getFeatureId(feat);
         // Look up its final destination status rather than intermediate steps
-        const resolvedCountry = finalState[id] || getCountryData(feat);
+       // const resolvedCountry = finalState[id] || getCountryData(feat);
+       const resolvedCountry = (finalState && finalState[id]) ? finalState[id] : getCountryData(feat);
+        
         const groupKey = resolvedCountry.key;
         
         const isBaselineMajor = (groupKey === 'Canada' || groupKey === 'United States of America' || groupKey === 'Mexico');

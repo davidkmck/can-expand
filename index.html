@@ -897,6 +897,9 @@ async function exportGIF() {
         ctx.fillRect(0, 0, targetWidth, targetHeight);
         ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
 
+        // Linger longer on the final frame (e.g., 2500ms) for a pause before looping
+        const frameDelay = isFinal ? 2500 : 900;
+        
         gif.addFrame(resizeCanvas, { delay: 900 });
       };
 

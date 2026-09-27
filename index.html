@@ -121,7 +121,7 @@
       width: 300px;
       backdrop-filter: blur(4px);
     }
-.timeline-header {
+    .timeline-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -133,7 +133,7 @@
     }
     .timeline-actions {
       display: flex;
-      gap: 6px; /* Clean spacing between buttons */
+      gap: 6px;
     }
     .btn-replay {
       color: white;
@@ -151,7 +151,6 @@
     .btn-replay:hover:not(:disabled) { filter: brightness(0.9); }
     .btn-replay:disabled { opacity: 0.5; cursor: not-allowed; }
     
-    .btn-replay:hover:not(:disabled) { background: #1e88e5; }
     .history-list {
       max-height: 110px;
       overflow-y: auto;
@@ -230,8 +229,8 @@
 </div>
 
   <!-- Screenshot and GIF Libraries -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
   
   <!-- Leaflet & Turf.js -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -255,22 +254,6 @@
       preferCanvas: true
     });
 
-    /* old
-    // --- CONTINENT MAPPING ---
-    const CONTINENTS = {
-      "North America": ["United States of America", "Canada", "Mexico", "Guatemala", "Honduras", "El Salvador", "Nicaragua", "Costa Rica", "Panama", "Belize", "Cuba", "The Bahamas", "Haiti", "Dominican Republic", "Jamaica", "Greenland", "Puerto Rico"],
-      "South America": ["Brazil", "Argentina", "Colombia", "Peru", "Chile", "Venezuela", "Ecuador", "Bolivia", "Paraguay", "Uruguay", "Guyana", "Suriname", "Trinidad and Tobago", "Falkland Islands"],
-      "Europe": ["United Kingdom", "France", "Germany", "Italy", "Spain", "Poland", "Ukraine", "Sweden", "Norway", "Finland", "Belarus", "Romania", "Greece", "Netherlands", "Belgium", "Czechia", "Portugal", "Hungary", "Austria", "Switzerland", "Bulgaria", "Denmark", "Slovakia", "Ireland", "Croatia", "Moldova", "Bosnia and Herzegovina", "Albania", "Lithuania", "Slovenia", "Latvia", "Estonia", "Montenegro", "Luxembourg", "Malta", "Iceland", "Serbia", "North Macedonia", "Kosovo"],
-      "Asia": ["Russia", "China", "India", "Japan", "South Korea", "North Korea", "Indonesia", "Iran", "Turkey", "Saudi Arabia", "Pakistan", "Vietnam", "Thailand", "Myanmar", "Iraq", "Afghanistan", "Uzbekistan", "Malaysia", "Yemen", "Nepal", "Syria", "Sri Lanka", "Kazakhstan", "Cambodia", "Jordan", "Azerbaijan", "United Arab Emirates", "Tajikistan", "Israel", "Laos", "Lebanon", "Kyrgyzstan", "Turkmenistan", "Singapore", "Oman", "State of Palestine", "Kuwait", "Georgia", "Mongolia", "Armenia", "Qatar", "Bahrain", "Cyprus", "Taiwan", "Philippines", "Bangladesh"],
-      "Africa": ["Nigeria", "Ethiopia", "Egypt", "Democratic Republic of the Congo", "Tanzania", "South Africa", "Kenya", "Uganda", "Algeria", "Sudan", "Morocco", "Angola", "Mozambique", "Ghana", "Madagascar", "Cameroon", "Côte d'Ivoire", "Niger", "Burkina Faso", "Mali", "Malawi", "Zambia", "Senegal", "Chad", "Somalia", "Zimbabwe", "Guinea", "Rwanda", "Benin", "Burundi", "Tunisia", "South Sudan", "Togo", "Sierra Leone", "Libya", "Republic of Congo", "Liberia", "Central African Republic", "Mauritania", "Eritrea", "Namibia", "Gambia", "Botswana", "Gabon", "Lesotho", "Guinea-Bissau", "Equatorial Guinea", "Mauritius", "Eswatini", "Djibouti", "Comoros", "Cabo Verde", "Sao Tome and Principe", "Seychelles"],
-      "Oceania": ["Australia", "New Zealand", "Papua New Guinea", "Fiji", "Solomon Islands", "Micronesia", "Vanuatu", "Samoa", "Kiribati", "Tonga", "Marshall Islands", "Palau", "Tuvalu", "Nauru", "New Caledonia", "French Polynesia"],
-      "Middle East": [
-        "Saudi Arabia", "Iran", "Iraq", "Turkey", "Israel", "Jordan", 
-        "Syria", "United Arab Emirates", "Yemen", "Oman", "Kuwait", 
-        "Qatar", "Bahrain", "Lebanon", "State of Palestine", "Palestine", "West Bank", "Gaza", "Cyprus"
-    ]
-    };
-*/
     // --- CONTINENT MAPPING ---
     const CONTINENTS = {
       "North America": ["United States of America", "Canada", "Mexico", "Guatemala", "Honduras", "El Salvador", "Nicaragua", "Costa Rica", "Panama", "Belize", "Cuba", "The Bahamas", "Haiti", "Dominican Republic", "Jamaica", "Greenland", "Puerto Rico"],
@@ -367,48 +350,46 @@
       geojsonLayer.resetStyle(e.target);
     }
 
-function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, requireBboxOverlap = false) {
-  const neighborMap = new Map();
-  const targetId = getFeatureId(targetFeature);
-  const targetCenter = turf.centroid(targetFeature);
-  const targetBbox = turf.bbox(targetFeature); // Grab the bounding box
-  const currentCountry = getCountryData(targetFeature);
+    function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, requireBboxOverlap = false) {
+      const neighborMap = new Map();
+      const targetId = getFeatureId(targetFeature);
+      const targetCenter = turf.centroid(targetFeature);
+      const targetBbox = turf.bbox(targetFeature);
+      const currentCountry = getCountryData(targetFeature);
 
-  rawFeatures.forEach(feat => {
-    const featId = getFeatureId(feat);
-    if (featId === targetId) return;
+      rawFeatures.forEach(feat => {
+        const featId = getFeatureId(feat);
+        if (featId === targetId) return;
 
-    try {
-      if (requireBboxOverlap) {
-        const featBbox = turf.bbox(feat);
-        // Add a 0.5 degree buffer to catch closely neighboring borders
-        const bboxOverlap = !(
-          targetBbox[0] > featBbox[2] + 0.5 || targetBbox[2] < featBbox[0] - 0.5 ||
-          targetBbox[1] > featBbox[3] + 0.5 || targetBbox[3] < featBbox[1] - 0.5
-        );
-        // If we require them to touch/overlap and they don't, skip this feature
-        if (!bboxOverlap) return; 
-      }
-
-      const featCenter = turf.centroid(feat);
-      const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
-      
-      if (dist < maxDistance) {
-        const neighborCountry = getCountryData(feat);
-        if (neighborCountry.key !== currentCountry.key) {
-          if (!neighborMap.has(neighborCountry.key) || dist < neighborMap.get(neighborCountry.key).dist) {
-            neighborMap.set(neighborCountry.key, { country: neighborCountry, dist: dist });
+        try {
+          if (requireBboxOverlap) {
+            const featBbox = turf.bbox(feat);
+            const bboxOverlap = !(
+              targetBbox[0] > featBbox[2] + 0.5 || targetBbox[2] < featBbox[0] - 0.5 ||
+              targetBbox[1] > featBbox[3] + 0.5 || targetBbox[1] < featBbox[1] - 0.5
+            );
+            if (!bboxOverlap) return; 
           }
-        }
-      }
-    } catch (e) {}
-  });
 
-  return Array.from(neighborMap.values())
-    .sort((a, b) => a.dist - b.dist)
-    .slice(0, limit)
-    .map(item => item.country);
-}
+          const featCenter = turf.centroid(feat);
+          const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
+          
+          if (dist < maxDistance) {
+            const neighborCountry = getCountryData(feat);
+            if (neighborCountry.key !== currentCountry.key) {
+              if (!neighborMap.has(neighborCountry.key) || dist < neighborMap.get(neighborCountry.key).dist) {
+                neighborMap.set(neighborCountry.key, { country: neighborCountry, dist: dist });
+              }
+            }
+          }
+        } catch (e) {}
+      });
+
+      return Array.from(neighborMap.values())
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, limit)
+        .map(item => item.country);
+    }
 
     function updatePanel(feature) {
       if (!feature) return;
@@ -437,30 +418,20 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
         const color = getFeatureColor(feature);
         regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${color};">${country.name}</span>`;
 
-// Check for immediate physical neighbors (Wide centroid distance, BUT strict border overlap required)
         const neighbors = getNeighboringEntities(feature, 2500, 99, true);
         
-      if (neighbors.length > 0) {
-          // Standard case: It has physical neighbors, only show those immediate borders
+        if (neighbors.length > 0) {
           neighbors.forEach(targetCountry => {
             const btn = document.createElement('button');
             btn.disabled = isReplaying;
             btn.className = 'action-btn';
-            
-            // Set background dynamically to match the map
             btn.style.background = getCountryColor(targetCountry);
-            
-            // Use .name for independents, and fallback to .key if name isn't set
             const displayName = targetCountry.type === 'INDEPENDENT' ? targetCountry.name : targetCountry.key;
             btn.innerText = `Join ${formatName(displayName)}`;
-            
             btn.onclick = () => changeStatus(feature, targetCountry);
             actionsEl.appendChild(btn);
           });
-        }
-        else {
-          // Island / Isolated fallback: If it has zero immediate physical neighbors, 
-          // allow long-distance diplomatic reach (up to 4500 km, closest 4)
+        } else {
           const distantNeighbors = getNeighboringEntities(feature, 4500, 4);
 
           if (distantNeighbors.length > 0) {
@@ -473,14 +444,9 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
               const btn = document.createElement('button');
               btn.disabled = isReplaying;
               btn.className = 'action-btn';
-              
-              // Set background dynamically to match the map
               btn.style.background = getCountryColor(targetCountry);
-              
-              // Use .name for independents, and fallback to .key if name isn't set
               const displayName = targetCountry.type === 'INDEPENDENT' ? targetCountry.name : targetCountry.key;
               btn.innerText = `Join ${formatName(displayName)}`;
-              
               btn.onclick = () => changeStatus(feature, targetCountry);
               actionsEl.appendChild(btn);
             });
@@ -488,11 +454,9 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
             actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
           }
         }
-
       } else {
         let badgeColor = country.type === 'SOVEREIGN' ? getSovereignColor(country.key) : getFeatureColor(feature);
         
-        // Only show rename button for independent unions, not sovereign nations
         let renameHtml = '';
         if (country.type === 'INDEPENDENT') {
             renameHtml = `<button onclick="renameUnion('${country.key}')" style="background: none; border: none; color: #2196f3; cursor: pointer; font-size: 0.85rem; font-weight: bold; padding: 0 8px;" ${isReplaying ? 'disabled' : ''}>✎ Rename</button>`;
@@ -530,17 +494,17 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
       stateStatus[id] = targetCountry;
       geojsonLayer.setStyle(style);
 
-    if (recordHistory) {
-            historyLog.push({
-              id: id,
-              continent: document.getElementById('continentSelect').value, // <--- Add this line
-              name: feature.properties.name || feature.properties.name_en || 'Region',
-              from: prevCountry.name === 'United States of America' ? 'USA' : prevCountry.name,
-              to: targetCountry.name === 'United States of America' ? 'USA' : targetCountry.name,
-              targetCountryObj: targetCountry
-            });
-            renderHistoryUI();
-          }
+      if (recordHistory) {
+        historyLog.push({
+          id: id,
+          continent: document.getElementById('continentSelect').value,
+          name: feature.properties.name || feature.properties.name_en || 'Region',
+          from: prevCountry.name === 'United States of America' ? 'USA' : prevCountry.name,
+          to: targetCountry.name === 'United States of America' ? 'USA' : targetCountry.name,
+          targetCountryObj: targetCountry
+        });
+        renderHistoryUI();
+      }
 
       if (selectedFeature && getFeatureId(selectedFeature) === id) updatePanel(feature);
     }
@@ -548,8 +512,6 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
     function renderHistoryUI() {
       const listEl = document.getElementById('historyList');
       const currentContinent = document.getElementById('continentSelect').value;
-      
-      // Filter the log to only show events from the active continent
       const filteredLog = historyLog.filter(entry => entry.continent === currentContinent);
 
       if (filteredLog.length === 0) {
@@ -560,68 +522,60 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
       listEl.innerHTML = filteredLog.map(item => `<li><strong>${item.name}</strong>: ${item.from} → ${item.to}</li>`).join('');
       listEl.scrollTop = listEl.scrollHeight;
     }
-    
 
-async function animateHistory() {
-  if (isReplaying || historyLog.length === 0) return;
-  isReplaying = true;
-  closeInfoPanel();
+    async function animateHistory() {
+      if (isReplaying || historyLog.length === 0) return;
+      isReplaying = true;
+      closeInfoPanel();
 
-  const replayBtn = document.getElementById('replayBtn');
-  const continentSelect = document.getElementById('continentSelect');
-  if (replayBtn) replayBtn.disabled = true;
-  if (continentSelect) continentSelect.disabled = true;
+      const replayBtn = document.getElementById('replayBtn');
+      const continentSelect = document.getElementById('continentSelect');
+      if (replayBtn) replayBtn.disabled = true;
+      if (continentSelect) continentSelect.disabled = true;
 
-  const currentContinent = continentSelect.value;
-  const listEl = document.getElementById('historyList');
-  listEl.innerHTML = ''; // Clear the UI list for the animation
+      const currentContinent = continentSelect.value;
+      const listEl = document.getElementById('historyList');
+      listEl.innerHTML = '';
 
-  // Backup current state and clear the map for the replay
-  const finalState = JSON.parse(JSON.stringify(stateStatus));
-  for (let key in stateStatus) delete stateStatus[key];
-  geojsonLayer.setStyle(style);
-
-  for (let i = 0; i < historyLog.length; i++) {
-    const entry = historyLog[i];
-
-    // 1. Fast-forward the background data for ALL global events
-    if (entry.action === 'RENAME') {
-        const targetKey = entry.oldKey || entry.from;
-        for (let id in stateStatus) {
-            if (stateStatus[id].key === targetKey) {
-                stateStatus[id].key = entry.to;
-                stateStatus[id].name = entry.to;
-            }
-        }
-    } else {
-        stateStatus[entry.id] = entry.targetCountryObj; 
-    }
-
-    // 2. Only pause, draw, and update the UI list if it happened on THIS continent
-    if (entry.continent === currentContinent) {
-      // Add the text row dynamically
-      const li = document.createElement('li');
-      li.innerHTML = `<strong>${entry.name}</strong>: ${entry.from} → ${entry.to}`;
-      listEl.appendChild(li);
-      listEl.scrollTop = listEl.scrollHeight;
-
-      // Draw the map and pause
+      const finalState = JSON.parse(JSON.stringify(stateStatus));
+      for (let key in stateStatus) delete stateStatus[key];
       geojsonLayer.setStyle(style);
-      await new Promise(resolve => setTimeout(resolve, 500)); 
-    }
-  }
 
-  // Restore final state just in case and re-enable UI
-  Object.assign(stateStatus, finalState);
-  geojsonLayer.setStyle(style);
-  renderHistoryUI(); // Ensure final list is perfect
-  
-  isReplaying = false;
-  if (replayBtn) replayBtn.disabled = false;
-  if (continentSelect) continentSelect.disabled = false;
-}
-    
-    
+      for (let i = 0; i < historyLog.length; i++) {
+        const entry = historyLog[i];
+
+        if (entry.action === 'RENAME') {
+            const targetKey = entry.oldKey || entry.from;
+            for (let id in stateStatus) {
+                if (stateStatus[id].key === targetKey) {
+                    stateStatus[id].key = entry.to;
+                    stateStatus[id].name = entry.to;
+                }
+            }
+        } else {
+            stateStatus[entry.id] = entry.targetCountryObj; 
+        }
+
+        if (entry.continent === currentContinent) {
+          const li = document.createElement('li');
+          li.innerHTML = `<strong>${entry.name}</strong>: ${entry.from} → ${entry.to}`;
+          listEl.appendChild(li);
+          listEl.scrollTop = listEl.scrollHeight;
+
+          geojsonLayer.setStyle(style);
+          await new Promise(resolve => setTimeout(resolve, 500)); 
+        }
+      }
+
+      Object.assign(stateStatus, finalState);
+      geojsonLayer.setStyle(style);
+      renderHistoryUI();
+      
+      isReplaying = false;
+      if (replayBtn) replayBtn.disabled = false;
+      if (continentSelect) continentSelect.disabled = false;
+    }
+
     function onEachFeature(feature, layer) {
       layer.on({
         mouseover: highlightFeature,
@@ -633,7 +587,6 @@ async function animateHistory() {
       });
     }
 
-    
     function getCountryColor(country) {
       if (country.type === 'INDEPENDENT') {
         const hash = country.key.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0);
@@ -645,10 +598,9 @@ async function animateHistory() {
       return getSovereignColor(country.key);
     }
 
-   function renameUnion(oldKey) {
+    function renameUnion(oldKey) {
       if (isReplaying) return;
     
-      // 1. Look up the actual friendly display name using the internal key
       let oldName = oldKey;
       for (const feat of rawFeatures) {
         const data = getCountryData(feat);
@@ -658,14 +610,12 @@ async function animateHistory() {
         }
       }
     
-      // 2. Prompt the user with the friendly name instead of the INDEP key
       const newName = prompt(`Rename "${oldName}" to:`, oldName);
       if (!newName || newName.trim() === "" || newName.trim() === oldName) return;
     
       const trimmedName = newName.trim();
       let changed = false;
     
-      // 3. Update the stateStatus for all regions that belong to the old union key
       rawFeatures.forEach(feat => {
         const currentData = getCountryData(feat);
         if (currentData.key === oldKey) {
@@ -679,10 +629,10 @@ async function animateHistory() {
         }
       });
     
-if (changed) {
+      if (changed) {
         historyLog.push({
           action: 'RENAME',
-          continent: document.getElementById('continentSelect').value, // <--- Add this line
+          continent: document.getElementById('continentSelect').value,
           name: 'Union Renamed',
           from: oldName,     
           oldKey: oldKey,    
@@ -690,13 +640,11 @@ if (changed) {
         });
         renderHistoryUI();
     
-        // Refresh the map styles and the open info panel
         if (geojsonLayer) geojsonLayer.setStyle(style);
         if (selectedFeature) updatePanel(selectedFeature);
       }
     }
     
-        
     function closeInfoPanel() {
       document.getElementById('infoPanel').classList.add('hidden');
       selectedFeature = null; 
@@ -704,30 +652,24 @@ if (changed) {
     
     function togglePanel(panelId) { document.getElementById(panelId).classList.toggle('minimized'); }
 
-    
-    // Renders the currently selected continent from the dropdown
     function loadContinent() {
       const selectedContinent = document.getElementById('continentSelect').value;
       const targetCountries = CONTINENTS[selectedContinent] || [];
 
-      // Filter global master dataset against the target continent array
       rawFeatures = allGlobalFeatures.filter(f => {
          const admin = f.properties.admin || f.properties.sovereignt;
          return targetCountries.includes(admin);
       });
 
-      // Clear existing map layer
       if (geojsonLayer) {
         map.removeLayer(geojsonLayer);
       }
 
-      // Rebuild map layer
       geojsonLayer = L.geoJSON(rawFeatures, {
         style: style,
         onEachFeature: onEachFeature
       }).addTo(map);
 
-      // Auto-zoom map using our predefined perfect bounds
       const bounds = CONTINENT_BOUNDS[selectedContinent];
       if (bounds) {
         map.fitBounds(bounds, { padding: [30, 30] }); 
@@ -736,344 +678,254 @@ if (changed) {
       }
       
       closeInfoPanel();
-      renderHistoryUI(); // <--- Add this right at the end!
+      renderHistoryUI();
     }
-
 
     async function exportGIF() {
-  if (isReplaying || historyLog.length === 0) return;
-  
-  const currentContinent = document.getElementById('continentSelect').value;
-  const filteredLog = historyLog.filter(entry => entry.continent === currentContinent);
-  
-  if (filteredLog.length === 0) {
-    alert('No history to export for this region.');
-    return;
-  }
-
-  isReplaying = true;
-  closeInfoPanel();
-  
-  const replayBtn = document.getElementById('replayBtn');
-  const exportBtn = document.getElementById('exportBtn');
-  const continentSelect = document.getElementById('continentSelect');
-  const listEl = document.getElementById('historyList');
-  
-  if (replayBtn) replayBtn.disabled = true;
-  if (exportBtn) exportBtn.disabled = true;
-  if (continentSelect) continentSelect.disabled = true;
-
-  listEl.innerHTML = '<li><em>Calculating focus frame & labels...</em></li>';
-
-  // 1. Fetch worker locally to bypass cross-origin restrictions
-  const workerReq = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
-  const workerBlob = await workerReq.blob();
-  const workerUrl = URL.createObjectURL(workerBlob);
-
-  // 2. LOCALIZED BOUNDS: Find every unique feature ID involved in this continent's history
-  const activeFeatureIds = new Set();
-  filteredLog.forEach(entry => {
-    if (entry.id) activeFeatureIds.add(entry.id);
-  });
-
-  const changedFeaturesList = rawFeatures.filter(f => activeFeatureIds.has(getFeatureId(f)));
-
-  // 3. Tightly frame ONLY the modified features with generous padding
-  let currentBounds = null;
-  if (changedFeaturesList.length > 0) {
-    changedFeaturesList.forEach(feat => {
-      try {
-        const b = L.geoJSON(feat).getBounds();
-        if (!currentBounds) {
-          currentBounds = L.latLngBounds(b.getSouthWest(), b.getNorthEast());
-        } else {
-          currentBounds.extend(b);
-        }
-      } catch (e) {}
-    });
-
-    if (currentBounds && currentBounds.isValid()) {
-      map.fitBounds(currentBounds, { animate: false, padding: [60, 60] });
-    } else {
-      const continentBounds = CONTINENT_BOUNDS[currentContinent];
-      if (continentBounds) {
-        map.fitBounds(continentBounds, { animate: false, padding: [30, 30] });
-        currentBounds = map.getBounds();
-      }
-    }
-  } else {
-    const continentBounds = CONTINENT_BOUNDS[currentContinent];
-    if (continentBounds) {
-      map.fitBounds(continentBounds, { animate: false, padding: [30, 30] });
-      currentBounds = map.getBounds();
-    }
-  }
-  await new Promise(resolve => setTimeout(resolve, 400)); // Let map settle completely
-
-  // Grab the exact final bounds being captured in the GIF
-  currentBounds = map.getBounds();
-
-  // 4. CREATE CLEAN, LARGE TRANSPARENT COUNTRY LABELS OVERLAY
-  const labelMarkers = [];
-  
-  function refreshCountryLabels(activeLogEntry = null) {
-    labelMarkers.forEach(m => map.removeLayer(m));
-    labelMarkers.length = 0;
-
-    const activeKeys = new Set();
-    if (activeLogEntry) {
-      if (activeLogEntry.action === 'RENAME') {
-        activeKeys.add(activeLogEntry.to);
-      } else if (activeLogEntry.targetCountryObj) {
-        activeKeys.add(activeLogEntry.targetCountryObj.key);
-      }
-    } else {
-      filteredLog.forEach(e => {
-        if (e.action === 'RENAME') activeKeys.add(e.to);
-        if (e.targetCountryObj) activeKeys.add(e.targetCountryObj.key);
-      });
-    }
-
-    const countryGroups = {};
-    rawFeatures.forEach(feat => {
-      const data = getCountryData(feat);
-      const groupKey = data.key;
+      if (isReplaying || historyLog.length === 0) return;
       
-      if (activeKeys.has(groupKey)) {
-        // Only include features that fall *within* the visible GIF bounds 
-        // (prevents large nations like USA/Canada from pulling the center off-screen into Alaska/Hawaii)
-        try {
-          const featCenter = turf.centroid(feat);
-          const coords = featCenter.geometry.coordinates; // [lng, lat]
-          const latLng = L.latLng(coords[1], coords[0]);
-          
-          if (currentBounds.contains(latLng)) {
-            if (!countryGroups[groupKey]) {
-              countryGroups[groupKey] = {
-                name: data.name === 'United States of America' ? 'USA' : data.name,
-                features: []
-              };
-            }
-            countryGroups[groupKey].features.push(feat);
-          }
-        } catch (e) {}
+      const currentContinent = document.getElementById('continentSelect').value;
+      const filteredLog = historyLog.filter(entry => entry.continent === currentContinent);
+      
+      if (filteredLog.length === 0) {
+        alert('No history to export for this region.');
+        return;
       }
-    });
 
-    Object.values(countryGroups).forEach(group => {
-      try {
-        const turfCollection = turf.featureCollection(group.features);
-        const center = turf.centerOfMass(turfCollection);
-        const coords = center.geometry.coordinates; // [lng, lat]
+      isReplaying = true;
+      closeInfoPanel();
+      
+      const replayBtn = document.getElementById('replayBtn');
+      const exportBtn = document.getElementById('exportBtn');
+      const continentSelect = document.getElementById('continentSelect');
+      const listEl = document.getElementById('historyList');
+      
+      if (replayBtn) replayBtn.disabled = true;
+      if (exportBtn) exportBtn.disabled = true;
+      if (continentSelect) continentSelect.disabled = true;
 
-        // Larger, transparent font styling with strong drop shadow for high contrast readability
-        const labelIcon = L.divIcon({
-          className: 'gif-country-label',
-          html: `<div style="font-size: 15px; font-weight: 900; color: #111111; text-align: center; white-space: nowrap; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 2px 4px rgba(0,0,0,0.4); pointer-events: none; letter-spacing: 0.5px;">${group.name}</div>`,
-          iconSize: [120, 24],
-          iconAnchor: [60, 12]
+      listEl.innerHTML = '<li><em>Calculating focus frame & labels...</em></li>';
+
+      const workerReq = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
+      const workerBlob = await workerReq.blob();
+      const workerUrl = URL.createObjectURL(workerBlob);
+
+      const activeFeatureIds = new Set();
+      filteredLog.forEach(entry => {
+        if (entry.id) activeFeatureIds.add(entry.id);
+      });
+
+      const changedFeaturesList = rawFeatures.filter(f => activeFeatureIds.has(getFeatureId(f)));
+
+      let currentBounds = null;
+      if (changedFeaturesList.length > 0) {
+        changedFeaturesList.forEach(feat => {
+          try {
+            const b = L.geoJSON(feat).getBounds();
+            if (!currentBounds) {
+              currentBounds = L.latLngBounds(b.getSouthWest(), b.getNorthEast());
+            } else {
+              currentBounds.extend(b);
+            }
+          } catch (e) {}
         });
 
-        const marker = L.marker([coords[1], coords[0]], { icon: labelIcon }).addTo(map);
-        labelMarkers.push(marker);
-      } catch (e) {}
-    });
-  }
-
-  const mapElement = document.getElementById('map');
-  const targetPane = mapElement.querySelector('.leaflet-overlay-pane') || mapElement;
-  
-  const rect = targetPane.getBoundingClientRect();
-  const originalWidth = Math.round(rect.width) || mapElement.offsetWidth;
-  const originalHeight = Math.round(rect.height) || mapElement.offsetHeight;
-
-  const scaleFactor = Math.min(1, 750 / originalWidth);
-  const targetWidth = Math.round(originalWidth * scaleFactor);
-  const targetHeight = Math.round(originalHeight * scaleFactor);
-
-  const gif = new GIF({
-    workers: 2,
-    quality: 10,
-    workerScript: workerUrl,
-    width: targetWidth,
-    height: targetHeight
-  });
-
-  // 5. Backup current state and reset map for replay
-  const finalState = JSON.parse(JSON.stringify(stateStatus));
-  for (let key in stateStatus) delete stateStatus[key];
-  geojsonLayer.setStyle(style);
-  refreshCountryLabels(null);
-  await new Promise(resolve => setTimeout(resolve, 200));
-
-  const captureFrame = async () => {
-    const canvas = await html2canvas(mapElement, { 
-      useCORS: true,
-      scale: 1,
-      backgroundColor: null,
-      width: originalWidth,
-      height: originalHeight
-    });
-
-    const resizeCanvas = document.createElement('canvas');
-    resizeCanvas.width = targetWidth;
-    resizeCanvas.height = targetHeight;
-    const ctx = resizeCanvas.getContext('2d');
-    
-    ctx.fillStyle = '#aad3df';
-    ctx.fillRect(0, 0, targetWidth, targetHeight);
-    ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
-
-    // Give the final frame of the animation a slightly longer pause so the user can read it!
-    gif.addFrame(resizeCanvas, { delay: 900 });
-  };
-
-  // Capture initial base map frame
-  await captureFrame();
-
-  // 6. Step through history cleanly
-  for (let i = 0; i < historyLog.length; i++) {
-    const entry = historyLog[i];
-
-    if (entry.action === 'RENAME') {
-        const targetKey = entry.oldKey || entry.from;
-        for (let id in stateStatus) {
-            if (stateStatus[id].key === targetKey) {
-                stateStatus[id].key = entry.to;
-                stateStatus[id].name = entry.to;
-            }
+        if (currentBounds && currentBounds.isValid()) {
+          map.fitBounds(currentBounds, { animate: false, padding: [60, 60] });
+        } else {
+          const continentBounds = CONTINENT_BOUNDS[currentContinent];
+          if (continentBounds) {
+            map.fitBounds(continentBounds, { animate: false, padding: [30, 30] });
+            currentBounds = map.getBounds();
+          }
         }
-    } else {
-        stateStatus[entry.id] = entry.targetCountryObj; 
-    }
+      } else {
+        const continentBounds = CONTINENT_BOUNDS[currentContinent];
+        if (continentBounds) {
+          map.fitBounds(continentBounds, { animate: false, padding: [30, 30] });
+          currentBounds = map.getBounds();
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 400));
 
-    if (entry.continent === currentContinent) {
+      currentBounds = map.getBounds();
+
+      const labelMarkers = [];
+      
+      function refreshCountryLabels(activeLogEntry = null) {
+        labelMarkers.forEach(m => map.removeLayer(m));
+        labelMarkers.length = 0;
+
+        const activeKeys = new Set();
+        if (activeLogEntry) {
+          if (activeLogEntry.action === 'RENAME') {
+            activeKeys.add(activeLogEntry.to);
+          } else if (activeLogEntry.targetCountryObj) {
+            activeKeys.add(activeLogEntry.targetCountryObj.key);
+          }
+        } else {
+          filteredLog.forEach(e => {
+            if (e.action === 'RENAME') activeKeys.add(e.to);
+            if (e.targetCountryObj) activeKeys.add(e.targetCountryObj.key);
+          });
+        }
+
+        const countryGroups = {};
+        rawFeatures.forEach(feat => {
+          const data = getCountryData(feat);
+          const groupKey = data.key;
+          
+          if (activeKeys.has(groupKey)) {
+            try {
+              const featCenter = turf.centroid(feat);
+              const coords = featCenter.geometry.coordinates;
+              const latLng = L.latLng(coords[1], coords[0]);
+              
+              if (currentBounds.contains(latLng)) {
+                if (!countryGroups[groupKey]) {
+                  countryGroups[groupKey] = {
+                    name: data.name === 'United States of America' ? 'USA' : data.name,
+                    features: []
+                  };
+                }
+                countryGroups[groupKey].features.push(feat);
+              }
+            } catch (e) {}
+          }
+        });
+
+        Object.values(countryGroups).forEach(group => {
+          try {
+            const turfCollection = turf.featureCollection(group.features);
+            const center = turf.centerOfMass(turfCollection);
+            const coords = center.geometry.coordinates;
+
+            const labelIcon = L.divIcon({
+              className: 'gif-country-label',
+              html: `<div style="font-size: 15px; font-weight: 900; color: #111111; text-align: center; white-space: nowrap; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 2px 4px rgba(0,0,0,0.4); pointer-events: none; letter-spacing: 0.5px;">${group.name}</div>`,
+              iconSize: [120, 24],
+              iconAnchor: [60, 12]
+            });
+
+            const marker = L.marker([coords[1], coords[0]], { icon: labelIcon }).addTo(map);
+            labelMarkers.push(marker);
+          } catch (e) {}
+        });
+      }
+
+      const mapElement = document.getElementById('map');
+      const targetPane = mapElement.querySelector('.leaflet-overlay-pane') || mapElement;
+      
+      const rect = targetPane.getBoundingClientRect();
+      const originalWidth = Math.round(rect.width) || mapElement.offsetWidth;
+      const originalHeight = Math.round(rect.height) || mapElement.offsetHeight;
+
+      const scaleFactor = Math.min(1, 750 / originalWidth);
+      const targetWidth = Math.round(originalWidth * scaleFactor);
+      const targetHeight = Math.round(originalHeight * scaleFactor);
+
+      const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        workerScript: workerUrl,
+        width: targetWidth,
+        height: targetHeight
+      });
+
+      const finalState = JSON.parse(JSON.stringify(stateStatus));
+      for (let key in stateStatus) delete stateStatus[key];
       geojsonLayer.setStyle(style);
-      refreshCountryLabels(entry); 
-      await new Promise(resolve => setTimeout(resolve, 250)); 
+      refreshCountryLabels(null);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const captureFrame = async () => {
+        const canvas = await html2canvas(mapElement, { 
+          useCORS: true,
+          scale: 1,
+          backgroundColor: null,
+          width: originalWidth,
+          height: originalHeight
+        });
+
+        const resizeCanvas = document.createElement('canvas');
+        resizeCanvas.width = targetWidth;
+        resizeCanvas.height = targetHeight;
+        const ctx = resizeCanvas.getContext('2d');
+        
+        ctx.fillStyle = '#aad3df';
+        ctx.fillRect(0, 0, targetWidth, targetHeight);
+        ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
+
+        gif.addFrame(resizeCanvas, { delay: 900 });
+      };
+
       await captureFrame();
-    }
-  }
 
-  // 7. Cleanup temporary labels from live map
-  labelMarkers.forEach(m => map.removeLayer(m));
+      for (let i = 0; i < historyLog.length; i++) {
+        const entry = historyLog[i];
 
-  // 8. Restore original state
-  Object.assign(stateStatus, finalState);
-  geojsonLayer.setStyle(style);
-  
-  const defaultBounds = CONTINENT_BOUNDS[currentContinent];
-  if (defaultBounds) {
-    map.fitBounds(defaultBounds, { animate: false, padding: [20, 20] });
-  }
-
-  listEl.innerHTML = '<li><em>Processing transparent labeled GIF...</em></li>';
-
-  // 9. Render, timestamp, and download
-  gif.on('finished', function(blob) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    
-    const now = new Date();
-    const timestamp = now.getFullYear().toString() +
-                      String(now.getMonth() + 1).padStart(2, '0') +
-                      String(now.getDate()).padStart(2, '0') + '-' +
-                      String(now.getHours()).padStart(2, '0') +
-                      String(now.getMinutes()).padStart(2, '0') +
-                      String(now.getSeconds()).padStart(2, '0');
-
-    const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
-    a.download = `can-expand-${safeName}-${timestamp}.gif`;
-    
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    isReplaying = false;
-    if (replayBtn) replayBtn.disabled = false;
-    if (exportBtn) exportBtn.disabled = false;
-    if (continentSelect) continentSelect.disabled = false;
-    renderHistoryUI();
-  });
-
-  gif.render();
-}
-
-  // Capture initial base map frame
-  await captureFrame();
-
-  // 6. Step through history cleanly and refresh country labels per frame as unions shift/rename
-  for (let i = 0; i < historyLog.length; i++) {
-    const entry = historyLog[i];
-
-    if (entry.action === 'RENAME') {
-        const targetKey = entry.oldKey || entry.from;
-        for (let id in stateStatus) {
-            if (stateStatus[id].key === targetKey) {
-                stateStatus[id].key = entry.to;
-                stateStatus[id].name = entry.to;
+        if (entry.action === 'RENAME') {
+            const targetKey = entry.oldKey || entry.from;
+            for (let id in stateStatus) {
+                if (stateStatus[id].key === targetKey) {
+                    stateStatus[id].key = entry.to;
+                    stateStatus[id].name = entry.to;
+                }
             }
+        } else {
+            stateStatus[entry.id] = entry.targetCountryObj; 
         }
-    } else {
-        stateStatus[entry.id] = entry.targetCountryObj; 
+
+        if (entry.continent === currentContinent) {
+          geojsonLayer.setStyle(style);
+          refreshCountryLabels(entry); 
+          await new Promise(resolve => setTimeout(resolve, 250)); 
+          await captureFrame();
+        }
+      }
+
+      labelMarkers.forEach(m => map.removeLayer(m));
+
+      Object.assign(stateStatus, finalState);
+      geojsonLayer.setStyle(style);
+      
+      const defaultBounds = CONTINENT_BOUNDS[currentContinent];
+      if (defaultBounds) {
+        map.fitBounds(defaultBounds, { animate: false, padding: [20, 20] });
+      }
+
+      listEl.innerHTML = '<li><em>Processing transparent labeled GIF...</em></li>';
+
+      gif.on('finished', function(blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        const now = new Date();
+        const timestamp = now.getFullYear().toString() +
+                          String(now.getMonth() + 1).padStart(2, '0') +
+                          String(now.getDate()).padStart(2, '0') + '-' +
+                          String(now.getHours()).padStart(2, '0') +
+                          String(now.getMinutes()).padStart(2, '0') +
+                          String(now.getSeconds()).padStart(2, '0');
+
+        const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
+        a.download = `can-expand-${safeName}-${timestamp}.gif`;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        isReplaying = false;
+        if (replayBtn) replayBtn.disabled = false;
+        if (exportBtn) exportBtn.disabled = false;
+        if (continentSelect) continentSelect.disabled = false;
+        renderHistoryUI();
+      });
+
+      gif.render();
     }
-// Inside the history loop:
-  if (entry.continent === currentContinent) {
-    geojsonLayer.setStyle(style);
-    refreshCountryLabels(entry); // <--- Pass the current history entry here!
-    await new Promise(resolve => setTimeout(resolve, 200)); 
-    await captureFrame();
-  }
-  }
-
-  // 7. Cleanup temporary country labels from live map
-  labelMarkers.forEach(m => map.removeLayer(m));
-
-  // 8. Restore original state
-  Object.assign(stateStatus, finalState);
-  geojsonLayer.setStyle(style);
-  
-  const defaultBounds = CONTINENT_BOUNDS[currentContinent];
-  if (defaultBounds) {
-    map.fitBounds(defaultBounds, { animate: false, padding: [20, 20] });
-  }
-
-  listEl.innerHTML = '<li><em>Processing labeled country GIF...</em></li>';
-
-  // 9. Render, timestamp, and download
-  gif.on('finished', function(blob) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    
-    const now = new Date();
-    const timestamp = now.getFullYear().toString() +
-                      String(now.getMonth() + 1).padStart(2, '0') +
-                      String(now.getDate()).padStart(2, '0') + '-' +
-                      String(now.getHours()).padStart(2, '0') +
-                      String(now.getMinutes()).padStart(2, '0') +
-                      String(now.getSeconds()).padStart(2, '0');
-
-    const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
-    a.download = `can-expand-${safeName}-${timestamp}.gif`;
-    
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    isReplaying = false;
-    if (replayBtn) replayBtn.disabled = false;
-    if (exportBtn) exportBtn.disabled = false;
-    if (continentSelect) continentSelect.disabled = false;
-    renderHistoryUI();
-  });
-
-  gif.render();
-}
-    
     
     // Initialize
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson') 
@@ -1081,7 +933,6 @@ if (changed) {
       .then(data => {
         allGlobalFeatures = data.features;
         
-        // Data Correction interceptor
         allGlobalFeatures.forEach(f => {
           const regionName = f.properties.name || '';
           if (regionName.includes('Crimea') || regionName === 'Sevastopol') {
@@ -1090,7 +941,7 @@ if (changed) {
           }
         });
 
-        loadContinent(); // Default parses North America initially
+        loadContinent();
       })
       .catch(err => {
         console.error('Error loading GeoJSON:', err);

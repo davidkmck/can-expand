@@ -1253,7 +1253,8 @@
         } else {
           gif.render();
         }
-        
+
+        /*
         gif.on('finished', function(blob) {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -1283,7 +1284,43 @@
         });
 
         gif.render();
+*/
 
+        gif.on('finished', function(blob) {
+          activeGif = null; // Clear instance reference
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          
+          const now = new Date();
+          const timestamp = now.getFullYear().toString() +
+                            String(now.getMonth() + 1).padStart(2, '0') +
+                            String(now.getDate()).padStart(2, '0') + '-' +
+                            String(now.getHours()).padStart(2, '0') +
+                            String(now.getMinutes()).padStart(2, '0') +
+                            String(now.getSeconds()).padStart(2, '0');
+
+          const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
+          a.download = `can-expand-${safeName}-${timestamp}.gif`;
+          
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          isReplaying = false;
+          if (replayBtn) replayBtn.disabled = false;
+          if (exportBtn) exportBtn.disabled = false;
+          if (continentSelect) continentSelect.disabled = false;
+          renderHistoryUI();
+        });
+
+        // Ensure running flag is clear before launching render thread
+        try {
+          gif.running = false;
+        } catch (e) {}
+        
+        gif.render();
     } catch (err) {
         console.error('GIF export error:', err);
         alert('Error: ' + err.message); // This will pop up the exact error on your phone screen!

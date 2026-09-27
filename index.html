@@ -772,11 +772,13 @@
         await new Promise(resolve => setTimeout(resolve, 400));
         currentBounds = map.getBounds();
 
-        const everActiveKeys = new Set();
-        filteredLog.forEach(e => {
-          if (e.action === 'RENAME') everActiveKeys.add(e.to);
-          if (e.targetCountryObj) everActiveKeys.add(e.targetCountryObj.key);
-        });
+// Collect all keys involved in the history log (both origins and destinations) so they show from the start
+      const everActiveKeys = new Set();
+      filteredLog.forEach(e => {
+        if (e.from) everActiveKeys.add(e.from);
+        if (e.to) everActiveKeys.add(e.to);
+        if (e.targetCountryObj) everActiveKeys.add(e.targetCountryObj.key);
+      });
 
         let activeLabelMarkers = [];
         let lockedCountryCenters = null;

@@ -207,8 +207,9 @@
 <!-- History & Replay Panel -->
 <div class="timeline-panel" id="timelinePanel">
   <div class="timeline-header">
-    <h3>History Log</h3>
-    <div>
+    <h3>History</h3>
+<div>
+      <button class="btn-replay" id="exportBtn" onclick="exportGIF()" style="background: #e91e63; margin-right: 4px;">Export GIF</button>
       <button class="btn-replay" id="replayBtn" onclick="animateHistory()">Replay Changes</button>
       <button class="toggle-btn" onclick="togglePanel('timelinePanel')">&#8211;</button>
     </div>
@@ -218,6 +219,10 @@
   </ul>
 </div>
 
+  <!-- Screenshot and GIF Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+  
   <!-- Leaflet & Turf.js -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
@@ -236,7 +241,8 @@
       center: [40.0, -96.0],
       zoom: 4,
       minZoom: 2,
-      maxZoom: 12
+      maxZoom: 12,
+      preferCanvas: true
     });
 
     /* old
@@ -723,6 +729,111 @@ if (changed) {
       renderHistoryUI(); // <--- Add this right at the end!
     }
 
+async function exportGIF() {
+  if (isReplaying || historyLog.length === 0) return;
+  
+  const currentContinent = document.getElementById('continentSelect').value;
+  const filteredLog = historyLog.filter(entry => entry.continent === currentContinent);
+  
+  if (filteredLog.length === 0) {
+    alert('No history to export for this region.');
+    return;
+  }
+
+  isReplaying = true;
+  closeInfoPanel();
+  
+  const replayBtn = document.getElementById('replayBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const continentSelect = document.getElementById('continentSelect');
+  const listEl = document.getElementById('historyList');
+  
+  if (replayBtn) replayBtn.disabled = true;
+  if (exportBtn) exportBtn.disabled = true;
+  if (continentSelect) continentSelect.disabled = true;
+
+  listEl.innerHTML = '<li><em>Recording frames, please wait...</em></li>';
+
+  // 1. Initialize the GIF encoder
+  const gif = new GIF({
+    workers: 2,
+    quality: 10,
+    workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
+    width: document.getElementById('map').offsetWidth,
+    height: document.getElementById('map').offsetHeight
+  });
+
+  // 2. Backup current state and clear the map
+  const finalState = JSON.parse(JSON.stringify(stateStatus));
+  for (let key in stateStatus) delete stateStatus[key];
+  geojsonLayer.setStyle(style);
+  await new Promise(resolve => setTimeout(resolve, 200));
+
+  // Helper to snap a picture of the map div
+  const captureFrame = async () => {
+    const canvas = await html2canvas(document.getElementById('map'), { useCORS: true });
+    gif.addFrame(canvas, { delay: 600 }); // 600ms per frame
+  };
+
+  // Capture the initial "clean" map
+  await captureFrame();
+
+  // 3. Loop through history, apply changes, and snap photos
+  for (let i = 0; i < historyLog.length; i++) {
+    const entry = historyLog[i];
+
+    if (entry.action === 'RENAME') {
+        const targetKey = entry.oldKey || entry.from;
+        for (let id in stateStatus) {
+            if (stateStatus[id].key === targetKey) {
+                stateStatus[id].key = entry.to;
+                stateStatus[id].name = entry.to;
+            }
+        }
+    } else {
+        stateStatus[entry.id] = entry.targetCountryObj; 
+    }
+
+    if (entry.continent === currentContinent) {
+      geojsonLayer.setStyle(style);
+      await new Promise(resolve => setTimeout(resolve, 200)); // allow map to visually update
+      await captureFrame();
+    }
+  }
+
+  // 4. Restore the map to its current state
+  Object.assign(stateStatus, finalState);
+  geojsonLayer.setStyle(style);
+  
+  listEl.innerHTML = '<li><em>Processing GIF (this might take a moment)...</em></li>';
+
+  // 5. Render and Download the GIF
+  gif.on('finished', function(blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    // Name the file based on the continent (e.g., can-expand-north-america.gif)
+    const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
+    a.download = `can-expand-${safeName}.gif`;
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // Re-enable UI
+    isReplaying = false;
+    if (replayBtn) replayBtn.disabled = false;
+    if (exportBtn) exportBtn.disabled = false;
+    if (continentSelect) continentSelect.disabled = false;
+    renderHistoryUI();
+  });
+
+  gif.render();
+}
+
+    
     // Initialize
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson') 
       .then(res => res.json())

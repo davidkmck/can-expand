@@ -164,7 +164,7 @@ async function exportGIF() {
 
     activeGif = new GIF({
       workers: isMobile ? 0 : 2,
-      quality: isMobile ? 40 : 50,
+      quality: isMobile ? 40 : 80,
       width: targetWidth,
       height: targetHeight
     });
@@ -177,13 +177,15 @@ async function exportGIF() {
     refreshCountryLabels();
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    const captureFrame = async (isFinal = false) => {
+const captureFrame = async (isFinal = false) => {
       const canvas = await html2canvas(mapElement, { 
         useCORS: true,
         scale: 1,
         backgroundColor: null,
         width: originalWidth,
-        height: originalHeight
+        height: originalHeight,
+        windowWidth: originalWidth,
+        windowHeight: originalHeight
       });
 
       const resizeCanvas = document.createElement('canvas');
@@ -277,7 +279,7 @@ async function exportGIF() {
         renderHistoryUI();
         alert('GIF export timed out.');
       }
-    }, 30000);
+    }, 60000);
 
     try {
       gif.running = false;

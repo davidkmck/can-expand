@@ -514,31 +514,39 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
       stateStatus[id] = targetCountry;
       geojsonLayer.setStyle(style);
 
-      if (recordHistory) {
-        historyLog.push({
-          id: id,
-          name: feature.properties.name || feature.properties.name_en || 'Region',
-          from: prevCountry.name === 'United States of America' ? 'USA' : prevCountry.name,
-          to: targetCountry.name === 'United States of America' ? 'USA' : targetCountry.name,
-          targetCountryObj: targetCountry
-        });
-        renderHistoryUI();
-      }
+    if (recordHistory) {
+            historyLog.push({
+              id: id,
+              continent: document.getElementById('continentSelect').value, // <--- Add this line
+              name: feature.properties.name || feature.properties.name_en || 'Region',
+              from: prevCountry.name === 'United States of America' ? 'USA' : prevCountry.name,
+              to: targetCountry.name === 'United States of America' ? 'USA' : targetCountry.name,
+              targetCountryObj: targetCountry
+            });
+            renderHistoryUI();
+          }
 
       if (selectedFeature && getFeatureId(selectedFeature) === id) updatePanel(feature);
     }
 
     function renderHistoryUI() {
       const listEl = document.getElementById('historyList');
-      if (historyLog.length === 0) {
-        listEl.innerHTML = '<li><em>No changes recorded yet.</em></li>';
+      const currentContinent = document.getElementById('continentSelect').value;
+      
+      // Filter the log to only show events from the active continent
+      const filteredLog = historyLog.filter(entry => entry.continent === currentContinent);
+
+      if (filteredLog.length === 0) {
+        listEl.innerHTML = '<li><em>No changes recorded for this region yet.</em></li>';
         return;
       }
-      listEl.innerHTML = historyLog.map(item => `<li><strong>${item.name}</strong>: ${item.from} → ${item.to}</li>`).join('');
+      
+      listEl.innerHTML = filteredLog.map(item => `<li><strong>${item.name}</strong>: ${item.from} → ${item.to}</li>`).join('');
       listEl.scrollTop = listEl.scrollHeight;
     }
+    
 
-    async function animateHistory() {
+async function animateHistory() {
   if (isReplaying || historyLog.length === 0) return;
   isReplaying = true;
   closeInfoPanel();
@@ -548,26 +556,21 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
   if (replayBtn) replayBtn.disabled = true;
   if (continentSelect) continentSelect.disabled = true;
 
-  // 1. Create a Set of IDs for the regions currently visible on the map
-  const currentContinentIds = new Set(rawFeatures.map(feat => getFeatureId(feat)));
+  const currentContinent = continentSelect.value;
+  const listEl = document.getElementById('historyList');
+  listEl.innerHTML = ''; // Clear the UI list for the animation
 
-  // 2. Backup current state and clear it for the replay
+  // Backup current state and clear the map for the replay
   const finalState = JSON.parse(JSON.stringify(stateStatus));
   for (let key in stateStatus) delete stateStatus[key];
   geojsonLayer.setStyle(style);
 
-  // 3. Loop through the history log
   for (let i = 0; i < historyLog.length; i++) {
     const entry = historyLog[i];
-    let isVisible = false;
 
-    // Check action type, apply to state, and check if it's visible on the current map
+    // 1. Fast-forward the background data for ALL global events
     if (entry.action === 'RENAME') {
-// Use the old internal key to find the targets, fallback to 'from' just in case
         const targetKey = entry.oldKey || entry.from;
-        
-        isVisible = rawFeatures.some(f => getCountryData(f).key === targetKey || getCountryData(f).key === entry.to);
-        
         for (let id in stateStatus) {
             if (stateStatus[id].key === targetKey) {
                 stateStatus[id].key = entry.to;
@@ -575,30 +578,34 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
             }
         }
     } else {
-        // For standard Annexations or Declarations of Independence
-        // Update these keys if your history array uses different names (e.g., entry.featureId, entry.newStatus)
-        stateStatus[entry.id] = entry.status; 
-        
-        // It's visible if the ID belongs to the current continent
-        isVisible = currentContinentIds.has(entry.id);
+        stateStatus[entry.id] = entry.targetCountryObj; 
     }
 
-    // 4. Only pause and redraw if the change happened on the current continent
-    if (isVisible) {
+    // 2. Only pause, draw, and update the UI list if it happened on THIS continent
+    if (entry.continent === currentContinent) {
+      // Add the text row dynamically
+      const li = document.createElement('li');
+      li.innerHTML = `<strong>${entry.name}</strong>: ${entry.from} → ${entry.to}`;
+      listEl.appendChild(li);
+      listEl.scrollTop = listEl.scrollHeight;
+
+      // Draw the map and pause
       geojsonLayer.setStyle(style);
-      await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay per frame
+      await new Promise(resolve => setTimeout(resolve, 500)); 
     }
   }
 
   // Restore final state just in case and re-enable UI
   Object.assign(stateStatus, finalState);
   geojsonLayer.setStyle(style);
+  renderHistoryUI(); // Ensure final list is perfect
   
   isReplaying = false;
   if (replayBtn) replayBtn.disabled = false;
   if (continentSelect) continentSelect.disabled = false;
 }
-
+    
+    
     function onEachFeature(feature, layer) {
       layer.on({
         mouseover: highlightFeature,
@@ -656,15 +663,15 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
         }
       });
     
-      if (changed) {
+if (changed) {
         historyLog.push({
           action: 'RENAME',
+          continent: document.getElementById('continentSelect').value, // <--- Add this line
           name: 'Union Renamed',
-          from: oldName,     // The friendly name for the History UI list
-          oldKey: oldKey,    // The internal key needed by the replay engine
+          from: oldName,     
+          oldKey: oldKey,    
           to: trimmedName
         });
-    
         renderHistoryUI();
     
         // Refresh the map styles and the open info panel
@@ -681,6 +688,7 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
     
     function togglePanel(panelId) { document.getElementById(panelId).classList.toggle('minimized'); }
 
+    
     // Renders the currently selected continent from the dropdown
     function loadContinent() {
       const selectedContinent = document.getElementById('continentSelect').value;
@@ -712,6 +720,7 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
       }
       
       closeInfoPanel();
+      renderHistoryUI(); // <--- Add this right at the end!
     }
 
     // Initialize

@@ -350,11 +350,10 @@
       geojsonLayer.resetStyle(e.target);
     }
 
-    function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, requireBboxOverlap = false) {
+    function getNeighboringEntities(targetFeature, maxDistance = 1500, limit = 99, requireBboxOverlap = false) {
       const neighborMap = new Map();
       const targetId = getFeatureId(targetFeature);
       const targetCenter = turf.centroid(targetFeature);
-      const targetBbox = turf.bbox(targetFeature);
       const currentCountry = getCountryData(targetFeature);
 
       rawFeatures.forEach(feat => {
@@ -362,18 +361,10 @@
         if (featId === targetId) return;
 
         try {
-          if (requireBboxOverlap) {
-            const featBbox = turf.bbox(feat);
-            const bboxOverlap = !(
-              targetBbox[0] > featBbox[2] + 0.5 || targetBbox[2] < featBbox[0] - 0.5 ||
-              targetBbox[1] > featBbox[3] + 0.5 || targetBbox[1] < featBbox[1] - 0.5
-            );
-            if (!bboxOverlap) return; 
-          }
-
           const featCenter = turf.centroid(feat);
           const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
           
+          // Allow reasonable proximity distance for neighboring and touching regions
           if (dist < maxDistance) {
             const neighborCountry = getCountryData(feat);
             if (neighborCountry.key !== currentCountry.key) {

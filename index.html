@@ -867,8 +867,8 @@
         const targetHeight = Math.round(originalHeight * scaleFactor);
 
         const gif = new GIF({
-          workers: isMobile ? 1 : 2,
-          quality: isMobile,
+          workers: 0, // Set to 0 on mobile to run on the main thread and avoid worker deadlocks
+          quality: isMobile ? 30 : 10,
           workerScript: workerUrl,
           width: targetWidth,
           height: targetHeight

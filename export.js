@@ -162,10 +162,9 @@ async function exportGIF() {
     const targetWidth = Math.round(originalWidth * scaleFactor);
     const targetHeight = Math.round(originalHeight * scaleFactor);
 
-    activeGif = new GIF({
-      workers: isMobile ? 0 : 2,
-      quality: 10,
-      workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
+activeGif = new GIF({
+      workers: 0,          // Run synchronously to avoid cross-origin worker script blocks
+      quality: 1,          // Fastest color quantization pass
       width: targetWidth,
       height: targetHeight
     });

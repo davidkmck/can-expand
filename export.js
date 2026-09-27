@@ -163,7 +163,7 @@ async function exportGIF() {
     const targetHeight = Math.round(originalHeight * scaleFactor);
 
     activeGif = new GIF({
-      workers: isMobile ? 0 : 2,
+      workers: 0, // isMobile ? 0 : 2,
       quality: isMobile ? 40 : 80,
       width: targetWidth,
       height: targetHeight

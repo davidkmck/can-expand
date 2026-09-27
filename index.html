@@ -466,9 +466,22 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
             actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
           }
         }
+      } 
       } else {
         let badgeColor = country.type === 'SOVEREIGN' ? getSovereignColor(country.key) : getFeatureColor(feature);
-        regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${badgeColor};">${formatName(country.name)}</span>`;
+        
+        // Only show rename button for independent unions, not sovereign nations
+        let renameHtml = '';
+        if (country.type === 'INDEPENDENT') {
+            renameHtml = `<button onclick="renameUnion('${country.key}')" style="background: none; border: none; color: #2196f3; cursor: pointer; font-size: 0.85rem; font-weight: bold; padding: 0 8px;" ${isReplaying ? 'disabled' : ''}>✎ Rename</button>`;
+        }
+
+        regionDetailsEl.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <span class="status-badge" style="background: ${badgeColor}; margin-bottom: 0;">${formatName(country.name)}</span>
+            ${renameHtml}
+          </div>
+        `;
         
         const btn = document.createElement('button');
         btn.disabled = isReplaying;
@@ -563,6 +576,56 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
       });
     }
 
+        
+    function renameUnion(oldKey) {
+      if (isReplaying) return;
+    
+      const newName = prompt(`Rename "${oldKey}" to:`, oldKey);
+      if (!newName || newName.trim() === "" || newName.trim() === oldKey) return;
+    
+      const trimmedName = newName.trim();
+      let changed = false;
+    
+      // Update the stateStatus for all regions that belong to the old union key
+      rawFeatures.forEach(feat => {
+        const currentData = getCountryData(feat);
+        if (currentData.key === oldKey) {
+          const id = getFeatureId(feat);
+          stateStatus[id] = {
+            type: currentData.type,
+            key: trimmedName,
+            name: trimmedName
+          };
+          changed = true;
+        }
+      });
+    
+      if (changed) {
+        // Add to history array (modify this based on your specific history object structure if needed)
+        historyLog.push({
+          action: 'RENAME',
+          from: oldKey,
+          to: trimmedName
+        });
+    
+        // Update History UI
+        const historyList = document.getElementById('historyList');
+        if (historyList) {
+          // Clear the "No changes recorded yet" default `<li>` if it's the first action
+          if (historyList.innerHTML.includes('No changes')) {
+            historyList.innerHTML = '';
+          }
+          const li = document.createElement('li');
+          li.innerHTML = `Renamed <strong>${oldKey}</strong> to <strong>${trimmedName}</strong>`;
+          historyList.prepend(li);
+        }
+    
+        // Refresh the map styles and the open info panel
+        if (geojsonLayer) geojsonLayer.setStyle(style);
+        if (selectedFeature) updatePanel(selectedFeature);
+      }
+    }
+        
     function closeInfoPanel() {
       document.getElementById('infoPanel').classList.add('hidden');
       selectedFeature = null; 

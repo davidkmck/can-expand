@@ -808,36 +808,58 @@ if (changed) {
   // 4. CREATE COUNTRY/UNION LABELS OVERLAY (Dynamically grouped by current country/union key)
   const labelMarkers = [];
   
-  function refreshCountryLabels() {
-    // Clear existing markers first if updating
+// 4. CREATE COUNTRY/UNION LABELS OVERLAY (Strictly for changing entities)
+  const labelMarkers = [];
+  
+  function refreshCountryLabels(activeLogEntry = null) {
+    // Clear existing markers first
     labelMarkers.forEach(m => map.removeLayer(m));
     labelMarkers.length = 0;
+
+    // Identify which country/union keys are involved in the current step or entire log
+    const activeKeys = new Set();
+    if (activeLogEntry) {
+      if (activeLogEntry.action === 'RENAME') {
+        activeKeys.add(activeLogEntry.to);
+      } else if (activeLogEntry.targetCountryObj) {
+        activeKeys.add(activeLogEntry.targetCountryObj.key);
+      }
+    } else {
+      // Fallback: If on base frame, include all keys that ever change in this continent
+      filteredLog.forEach(e => {
+        if (e.action === 'RENAME') activeKeys.add(e.to);
+        if (e.targetCountryObj) activeKeys.add(e.targetCountryObj.key);
+      });
+    }
 
     // Group raw features by their current active country/union key
     const countryGroups = {};
     rawFeatures.forEach(feat => {
       const data = getCountryData(feat);
       const groupKey = data.key;
-      if (!countryGroups[groupKey]) {
-        countryGroups[groupKey] = {
-          name: data.name === 'United States of America' ? 'USA' : data.name,
-          features: []
-        };
+      
+      // ONLY process the group if it matches an entity actively involved in a change!
+      if (activeKeys.has(groupKey)) {
+        if (!countryGroups[groupKey]) {
+          countryGroups[groupKey] = {
+            name: data.name === 'United States of America' ? 'USA' : data.name,
+            features: []
+          };
+        }
+        countryGroups[groupKey].features.push(feat);
       }
-      countryGroups[groupKey].features.push(feat);
     });
 
-    // Place a label at the centroid of each country/union group
-    Object.values(countryGroups.slice ? Object.values(countryGroups) : Object.keys(countryGroups).map(k => countryGroups[k])).forEach(group => {
+    // Place a label ONLY at the centroid of active groups
+    Object.values(countryGroups).forEach(group => {
       try {
-        // Combine features in this union into a turf collection to find its true center
         const turfCollection = turf.featureCollection(group.features);
         const center = turf.centerOfMass(turfCollection);
         const coords = center.geometry.coordinates; // [lng, lat]
 
         const labelIcon = L.divIcon({
           className: 'gif-country-label',
-          html: `<div style="background: rgba(255, 255, 255, 0.85); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #111; text-align: center; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.3); pointer-events: none; border: 1px solid rgba(0,0,0,0.1);">${group.name}</div>`,
+          html: `<div style="background: rgba(255, 255, 255, 0.9); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #111; text-align: center; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.3); pointer-events: none; border: 1px solid rgba(0,0,0,0.15);">${group.name}</div>`,
           iconSize: [80, 20],
           iconAnchor: [40, 10]
         });
@@ -847,7 +869,6 @@ if (changed) {
       } catch (e) {}
     });
   }
-
   refreshCountryLabels();
 
   const mapElement = document.getElementById('map');
@@ -915,13 +936,13 @@ if (changed) {
     } else {
         stateStatus[entry.id] = entry.targetCountryObj; 
     }
-
-    if (entry.continent === currentContinent) {
-      geojsonLayer.setStyle(style);
-      refreshCountryLabels(); // Update label positions/names if unions change
-      await new Promise(resolve => setTimeout(resolve, 200)); 
-      await captureFrame();
-    }
+// Inside the history loop:
+  if (entry.continent === currentContinent) {
+    geojsonLayer.setStyle(style);
+    refreshCountryLabels(entry); // <--- Pass the current history entry here!
+    await new Promise(resolve => setTimeout(resolve, 200)); 
+    await captureFrame();
+  }
   }
 
   // 7. Cleanup temporary country labels from live map

@@ -1160,9 +1160,9 @@
           try { activeGif.running = false; } catch (e) {}
         }
 
-        activeGif = new GIF({
+        const gif = new GIF({
           workers: isMobile ? 0 : 2,
-          quality: isMobile ? 40 : 10,
+          quality: isMobile ? 40 : 50, // Higher number = much faster compression pass
           width: targetWidth,
           height: targetHeight
         });
@@ -1271,8 +1271,7 @@
           renderHistoryUI();
         });
 
-        // Safeguard: If encoding takes longer than 15 seconds, force a completion fallback
-        const exportTimeout = setTimeout(() => {
+      const exportTimeout = setTimeout(() => {
           if (isReplaying) {
             console.warn('GIF encoding timed out, forcing reset...');
             isReplaying = false;
@@ -1280,9 +1279,9 @@
             if (exportBtn) exportBtn.disabled = false;
             if (continentSelect) continentSelect.disabled = false;
             renderHistoryUI();
-            alert('GIF export timed out. Try recording fewer steps or a smaller region.');
+            alert('GIF export timed out.');
           }
-        }, 15000);
+        }, 30000); // Expanded to 30 seconds
 
         try {
           gif.running = false;

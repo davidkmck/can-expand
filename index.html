@@ -987,7 +987,7 @@
     }
     */
 
-async function exportGIF() {
+    async function exportGIF() {
       if (isReplaying) return;
       
       const currentContinent = document.getElementById('continentSelect').value;
@@ -1014,15 +1014,6 @@ async function exportGIF() {
 
       try {
         const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-        let workerUrl = null;
-
-        if (!isMobile) {
-          try {
-            const workerReq = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
-            const workerBlob = await workerReq.blob();
-            workerUrl = URL.createObjectURL(workerBlob);
-          } catch (e) {}
-        }
 
         const activeFeatureIds = new Set();
         filteredLog.forEach(entry => {
@@ -1149,23 +1140,19 @@ async function exportGIF() {
         const originalWidth = Math.round(rect.width) || mapElement.offsetWidth;
         const originalHeight = Math.round(rect.height) || mapElement.offsetHeight;
 
+        // Keep mobile resolution compact (300px max) so main-thread color quantization runs instantly
         const maxDimension = isMobile ? 300 : 750;
         const scaleFactor = Math.min(1, maxDimension / originalWidth);
         const targetWidth = Math.round(originalWidth * scaleFactor);
         const targetHeight = Math.round(originalHeight * scaleFactor);
 
-        // Clean configuration object with proper worker handling for mobile vs PC
-        const gifConfig = {
+        // For mobile, workers: 0 runs synchronously on main thread without fetching external worker scripts
+        const gif = new GIF({
           workers: isMobile ? 0 : 2,
           quality: isMobile ? 40 : 10,
           width: targetWidth,
           height: targetHeight
-        };
-        if (workerUrl) {
-          gifConfig.workerScript = workerUrl;
-        }
-
-        const gif = new GIF(gifConfig);
+        });
 
         const finalState = JSON.parse(JSON.stringify(stateStatus));
         for (let key in stateStatus) delete stateStatus[key];
@@ -1276,7 +1263,6 @@ async function exportGIF() {
         renderHistoryUI();
       }
     }
-    
     
     // Initialize
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson') 

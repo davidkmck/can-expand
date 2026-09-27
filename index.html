@@ -557,11 +557,13 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
 
     // Check action type, apply to state, and check if it's visible on the current map
     if (entry.action === 'RENAME') {
-        // If renaming, check if any feature on the screen shares the old or new name
-        isVisible = rawFeatures.some(f => getCountryData(f).key === entry.from || getCountryData(f).key === entry.to);
+// Use the old internal key to find the targets, fallback to 'from' just in case
+        const targetKey = entry.oldKey || entry.from;
+        
+        isVisible = rawFeatures.some(f => getCountryData(f).key === targetKey || getCountryData(f).key === entry.to);
         
         for (let id in stateStatus) {
-            if (stateStatus[id].key === entry.from) {
+            if (stateStatus[id].key === targetKey) {
                 stateStatus[id].key = entry.to;
                 stateStatus[id].name = entry.to;
             }
@@ -602,17 +604,28 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
       });
     }
 
-        
-    function renameUnion(oldKey) {
+
+   function renameUnion(oldKey) {
       if (isReplaying) return;
     
-      const newName = prompt(`Rename "${oldKey}" to:`, oldKey);
-      if (!newName || newName.trim() === "" || newName.trim() === oldKey) return;
+      // 1. Look up the actual friendly display name using the internal key
+      let oldName = oldKey;
+      for (const feat of rawFeatures) {
+        const data = getCountryData(feat);
+        if (data.key === oldKey) {
+          oldName = data.name;
+          break;
+        }
+      }
+    
+      // 2. Prompt the user with the friendly name instead of the INDEP key
+      const newName = prompt(`Rename "${oldName}" to:`, oldName);
+      if (!newName || newName.trim() === "" || newName.trim() === oldName) return;
     
       const trimmedName = newName.trim();
       let changed = false;
     
-      // Update the stateStatus for all regions that belong to the old union key
+      // 3. Update the stateStatus for all regions that belong to the old union key
       rawFeatures.forEach(feat => {
         const currentData = getCountryData(feat);
         if (currentData.key === oldKey) {
@@ -627,30 +640,22 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
       });
     
       if (changed) {
-        // Add to history array (modify this based on your specific history object structure if needed)
         historyLog.push({
           action: 'RENAME',
-          from: oldKey,
+          name: 'Union Renamed',
+          from: oldName,     // The friendly name for the History UI list
+          oldKey: oldKey,    // The internal key needed by the replay engine
           to: trimmedName
         });
     
-        // Update History UI
-        const historyList = document.getElementById('historyList');
-        if (historyList) {
-          // Clear the "No changes recorded yet" default `<li>` if it's the first action
-          if (historyList.innerHTML.includes('No changes')) {
-            historyList.innerHTML = '';
-          }
-          const li = document.createElement('li');
-          li.innerHTML = `Renamed <strong>${oldKey}</strong> to <strong>${trimmedName}</strong>`;
-          historyList.prepend(li);
-        }
+        renderHistoryUI();
     
         // Refresh the map styles and the open info panel
         if (geojsonLayer) geojsonLayer.setStyle(style);
         if (selectedFeature) updatePanel(selectedFeature);
       }
     }
+    
         
     function closeInfoPanel() {
       document.getElementById('infoPanel').classList.add('hidden');

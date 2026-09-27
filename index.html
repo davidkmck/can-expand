@@ -740,7 +740,8 @@ if (changed) {
     }
 
 
-async function exportGIF() {
+
+    async function exportGIF() {
   if (isReplaying || historyLog.length === 0) return;
   
   const currentContinent = document.getElementById('continentSelect').value;
@@ -763,14 +764,14 @@ async function exportGIF() {
   if (exportBtn) exportBtn.disabled = true;
   if (continentSelect) continentSelect.disabled = true;
 
-  listEl.innerHTML = '<li><em>Calculating localized bounding box...</em></li>';
+  listEl.innerHTML = '<li><em>Adding labels & preparing frames...</em></li>';
 
   // 1. Fetch worker locally to bypass cross-origin restrictions
   const workerReq = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
   const workerBlob = await workerReq.blob();
   const workerUrl = URL.createObjectURL(workerBlob);
 
-  // 2. LOCALIZED BOUNDS: Find every unique feature ID involved in this continent's history
+  // 2. LOCALIZED BOUNDS & TARGETING
   const activeFeatureIds = new Set();
   filteredLog.forEach(entry => {
     if (entry.id) activeFeatureIds.add(entry.id);
@@ -778,7 +779,6 @@ async function exportGIF() {
 
   const changedFeaturesList = rawFeatures.filter(f => activeFeatureIds.has(getFeatureId(f)));
 
-  // 3. Tightly frame ONLY the modified features with generous padding
   if (changedFeaturesList.length > 0) {
     let combinedBounds = null;
     changedFeaturesList.forEach(feat => {
@@ -793,7 +793,6 @@ async function exportGIF() {
     });
 
     if (combinedBounds && combinedBounds.isValid()) {
-      // Fit map tightly to the modified regions with a clean padding
       map.fitBounds(combinedBounds, { animate: false, padding: [60, 60] });
     } else {
       const continentBounds = CONTINENT_BOUNDS[currentContinent];
@@ -803,7 +802,29 @@ async function exportGIF() {
     const continentBounds = CONTINENT_BOUNDS[currentContinent];
     if (continentBounds) map.fitBounds(continentBounds, { animate: false, padding: [30, 30] });
   }
-  await new Promise(resolve => setTimeout(resolve, 400)); // Let map settle completely
+  await new Promise(resolve => setTimeout(resolve, 400)); // Let map settle
+
+  // 3. CREATE TEMPORARY MAP LABELS OVERLAY
+  const labelMarkers = [];
+  rawFeatures.forEach(feat => {
+    try {
+      const centroid = turf.centroid(feat);
+      const coords = centroid.geometry.coordinates; // [lng, lat]
+      const name = feat.properties.name || feat.properties.name_en || '';
+      if (!name) return;
+
+      // Create a lightweight custom HTML marker for the label
+      const labelIcon = L.divIcon({
+        className: 'gif-country-label',
+        html: `<div style="background: rgba(255, 255, 255, 0.75); padding: 1px 4px; border-radius: 3px; font-size: 9px; font-weight: bold; color: #111; text-align: center; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.2); pointer-events: none;">${name === 'United States of America' ? 'USA' : name}</div>`,
+        iconSize: [60, 16],
+        iconAnchor: [30, 8]
+      });
+
+      const marker = L.marker([coords[1], coords[0]], { icon: labelIcon }).addTo(map);
+      labelMarkers.push(marker);
+    } catch (e) {}
+  });
 
   const mapElement = document.getElementById('map');
   const targetPane = mapElement.querySelector('.leaflet-overlay-pane') || mapElement;
@@ -812,14 +833,13 @@ async function exportGIF() {
   const originalWidth = Math.round(rect.width) || mapElement.offsetWidth;
   const originalHeight = Math.round(rect.height) || mapElement.offsetHeight;
 
-  // Restore crisp resolution (scale: 1) so it doesn't look low-res anymore
-  const scaleFactor = Math.min(1, 750 / originalWidth); // Increased cap for sharper detail
+  const scaleFactor = Math.min(1, 750 / originalWidth);
   const targetWidth = Math.round(originalWidth * scaleFactor);
   const targetHeight = Math.round(originalHeight * scaleFactor);
 
   const gif = new GIF({
     workers: 2,
-    quality: 10, // Full quality for crisp rendering
+    quality: 10,
     workerScript: workerUrl,
     width: targetWidth,
     height: targetHeight
@@ -832,9 +852,9 @@ async function exportGIF() {
   await new Promise(resolve => setTimeout(resolve, 200));
 
   const captureFrame = async () => {
-    const canvas = await html2canvas(targetPane, { 
+    const canvas = await html2canvas(mapElement, { // Captures map pane + label marker overlays together!
       useCORS: true,
-      scale: 1, // Full resolution capture for sharp text and borders
+      scale: 1,
       backgroundColor: null,
       width: originalWidth,
       height: originalHeight
@@ -852,7 +872,7 @@ async function exportGIF() {
     gif.addFrame(resizeCanvas, { delay: 600 });
   };
 
-  // Capture initial base map frame
+  // Capture initial base map frame with labels
   await captureFrame();
 
   // 5. Step through history cleanly
@@ -878,7 +898,10 @@ async function exportGIF() {
     }
   }
 
-  // 6. Restore original state
+  // 6. Cleanup temporary labels from the live map
+  labelMarkers.forEach(m => map.removeLayer(m));
+
+  // 7. Restore original state
   Object.assign(stateStatus, finalState);
   geojsonLayer.setStyle(style);
   
@@ -887,9 +910,9 @@ async function exportGIF() {
     map.fitBounds(defaultBounds, { animate: false, padding: [20, 20] });
   }
 
-  listEl.innerHTML = '<li><em>Processing crisp, localized GIF...</em></li>';
+  listEl.innerHTML = '<li><em>Processing labeled GIF...</em></li>';
 
-  // 7. Render, timestamp, and download
+  // 8. Render, timestamp, and download
   gif.on('finished', function(blob) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

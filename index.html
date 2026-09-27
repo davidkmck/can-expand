@@ -236,7 +236,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
   
- <script>
+  <script>
     let activeGif = null;
     
     // State Tracking
@@ -352,7 +352,6 @@
       geojsonLayer.resetStyle(e.target);
     }
 
-
     function getNeighboringEntities(targetFeature, maxDistance = 3000, limit = 99) {
       const neighborMap = new Map();
       const targetId = getFeatureId(targetFeature);
@@ -368,7 +367,7 @@
           const featBbox = turf.bbox(feat);
           const isTouching = !(
             targetBbox[0] > featBbox[2] + 0.5 || targetBbox[2] < featBbox[0] - 0.5 ||
-            targetBbox[1] > featBbox[3] + 0.5 || targetBbox[1] < featBbox[1] - 0.5
+            targetBbox[1] > featBbox[3] + 0.5 || targetBbox[3] < featBbox[1] - 0.5
           );
 
           if (!isTouching) return;

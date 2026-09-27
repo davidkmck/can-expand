@@ -771,7 +771,8 @@
 
       currentBounds = map.getBounds();
 /////
-      
+
+      /*
 let activeLabelMarkers = [];
       let lockedCountryCenters = null; // Cache to lock large nation label positions so they don't jitter
       
@@ -841,7 +842,80 @@ let activeLabelMarkers = [];
           } catch (e) {}
         });
       }
+*/
+      let activeLabelMarkers = [];
+      let lockedCountryCenters = null; // Caches centers so large nations stay locked in place
+      
+      function refreshCountryLabels() {
+        activeLabelMarkers.forEach(m => map.removeLayer(m));
+        activeLabelMarkers = [];
 
+        const countryGroups = {};
+        rawFeatures.forEach(feat => {
+          const data = getCountryData(feat);
+          const groupKey = data.key;
+          
+          try {
+            const featCenter = turf.centroid(feat);
+            const coords = featCenter.geometry.coordinates;
+            const latLng = L.latLng(coords[1], coords[0]);
+            
+            if (currentBounds.contains(latLng)) {
+              if (!countryGroups[groupKey]) {
+                countryGroups[groupKey] = {
+                  name: data.name === 'United States of America' ? 'USA' : data.name,
+                  features: []
+                };
+              }
+              countryGroups[groupKey].features.push(feat);
+            }
+          } catch (e) {}
+        });
+
+        // Initialize and cache fixed centers on the first run for static/large nations
+        if (!lockedCountryCenters) {
+          lockedCountryCenters = {};
+          Object.entries(countryGroups).forEach(([key, group]) => {
+            try {
+              const turfCollection = turf.featureCollection(group.features);
+              const center = turf.centerOfMass(turfCollection);
+              lockedCountryCenters[key] = center.geometry.coordinates; // [lng, lat]
+            } catch (e) {}
+          });
+        }
+
+        Object.entries(countryGroups).forEach(([groupKey, group]) => {
+          try {
+            let coords = lockedCountryCenters[groupKey];
+            if (!coords) {
+              const turfCollection = turf.featureCollection(group.features);
+              const center = turf.centerOfMass(turfCollection);
+              coords = center.geometry.coordinates;
+              lockedCountryCenters[groupKey] = coords;
+            }
+
+            // Proportional font sizing: scales up cleanly based on how many constituent features make up the nation/union
+            const featureCount = group.features.length;
+            const isMegaNation = featureCount > 10; // e.g., USA, Canada
+            const isMediumNation = featureCount > 3;
+
+            // Tailored font size tiers ensuring large nations stand out proportionally over smaller ones
+            const fontSize = isMegaNation ? 22 : (isMediumNation ? 16 : 13);
+            const anchorOffset = Math.round(fontSize * 3.5);
+
+            // Clean, fully transparent background with crisp high-contrast text shadow
+            const labelIcon = L.divIcon({
+              className: 'gif-country-label',
+              html: `<div style="background: transparent; font-size: ${fontSize}px; font-weight: 900; color: #111111; text-align: center; white-space: nowrap; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 2px 4px rgba(0,0,0,0.4); pointer-events: none; letter-spacing: 0.5px;">${group.name}</div>`,
+              iconSize: [fontSize * 8, fontSize * 1.6],
+              iconAnchor: [anchorOffset, fontSize * 0.8]
+            });
+
+            const marker = L.marker([coords[1], coords[0]], { icon: labelIcon }).addTo(map);
+            activeLabelMarkers.push(marker);
+          } catch (e) {}
+        });
+      }
       /////
     
 

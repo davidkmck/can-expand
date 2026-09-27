@@ -405,6 +405,7 @@
 
       const formatName = (str) => str === 'United States of America' ? 'USA' : str;
 
+      /*
       if (isStandalone) {
         const color = getFeatureColor(feature);
         regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${color};">${country.name}</span>`;
@@ -445,6 +446,58 @@
             actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
           }
         }
+
+*/
+      if (isStandalone) {
+        const color = getFeatureColor(feature);
+        regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${color};">${country.name}</span>`;
+
+        // Check if the current feature is an island (surrounded by water / no land neighbors)
+        const immediateNeighbors = getNeighboringEntities(feature, 1500, 99, true);
+        const isIslandOrIsolated = immediateNeighbors.length === 0;
+
+        // 1. Standard immediate neighbors (touching borders)
+        const neighbors = getNeighboringEntities(feature, 2500, 99, true);
+        
+        if (neighbors.length > 0) {
+          neighbors.forEach(targetCountry => {
+            const btn = document.createElement('button');
+            btn.disabled = isReplaying;
+            btn.className = 'action-btn';
+            btn.style.background = getCountryColor(targetCountry);
+            const displayName = targetCountry.type === 'INDEPENDENT' ? targetCountry.name : targetCountry.key;
+            btn.innerText = `Join ${formatName(displayName)}`;
+            btn.onclick = () => changeStatus(feature, targetCountry);
+            actionsEl.appendChild(btn);
+          });
+        } 
+        // 2. Only allow long-distance / island transit options IF the region itself is an island/isolated!
+        else if (isIslandOrIsolated) {
+          const distantNeighbors = getNeighboringEntities(feature, 4500, 4);
+
+          if (distantNeighbors.length > 0) {
+            const header = document.createElement('p');
+            header.style.cssText = 'font-size:0.8rem; font-weight:600; margin: 4px 0; color:#555;';
+            header.innerText = 'Diplomatic Reach (Island Transit):';
+            actionsEl.appendChild(header);
+
+            distantNeighbors.forEach(targetCountry => {
+              const btn = document.createElement('button');
+              btn.disabled = isReplaying;
+              btn.className = 'action-btn';
+              btn.style.background = getCountryColor(targetCountry);
+              const displayName = targetCountry.type === 'INDEPENDENT' ? targetCountry.name : targetCountry.key;
+              btn.innerText = `Join ${formatName(displayName)}`;
+              btn.onclick = () => changeStatus(feature, targetCountry);
+              actionsEl.appendChild(btn);
+            });
+          } else {
+            actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
+          }
+        } else {
+          actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
+        }
+        
       } else {
         let badgeColor = country.type === 'SOVEREIGN' ? getSovereignColor(country.key) : getFeatureColor(feature);
         

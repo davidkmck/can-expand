@@ -1,7 +1,11 @@
-// export.js - Handles animated GIF recording and exporting with gifshot
+// export.js - Handles animated GIF recording and exporting with gif.js
 
 async function exportGIF() {
   if (isReplaying) return;
+
+  if (typeof activeGif !== 'undefined' && activeGif) {
+    try { activeGif.running = false; } catch (e) {}
+  }
   
   const currentContinent = document.getElementById('continentSelect').value;
   const filteredLog = historyLog.filter(entry => entry.continent === currentContinent);
@@ -158,14 +162,21 @@ async function exportGIF() {
     const targetWidth = Math.round(originalWidth * scaleFactor);
     const targetHeight = Math.round(originalHeight * scaleFactor);
 
+    activeGif = new GIF({
+      workers: isMobile ? 0 : 2,
+      quality: 10,
+      workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
+      width: targetWidth,
+      height: targetHeight
+    });
+    
+    const gif = activeGif;
+
     const finalState = JSON.parse(JSON.stringify(stateStatus));
     for (let key in stateStatus) delete stateStatus[key];
     geojsonLayer.setStyle(style);
     refreshCountryLabels();
     await new Promise(resolve => setTimeout(resolve, 200));
-
-    // Collect canvas elements as image data URLs or canvas objects for gifshot
-    const frameCanvases = [];
 
     const captureFrame = async (isFinal = false) => {
       const canvas = await html2canvas(mapElement, { 
@@ -187,13 +198,12 @@ async function exportGIF() {
       ctx.fillRect(0, 0, targetWidth, targetHeight);
       ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
 
-      frameCanvases.push(resizeCanvas);
+      const frameDelay = isFinal ? 2500 : 900;
+      gif.addFrame(resizeCanvas, { delay: frameDelay });
     };
 
-    // 1. Capture initial state
     await captureFrame(false);
 
-    // 2. Capture history steps
     for (let i = 0; i < historyLog.length; i++) {
       const entry = historyLog[i];
 
@@ -217,7 +227,6 @@ async function exportGIF() {
       }
     }
 
-    // 3. Capture final frame
     await captureFrame(true);
 
     activeLabelMarkers.forEach(m => map.removeLayer(m));
@@ -229,38 +238,30 @@ async function exportGIF() {
       map.fitBounds(defaultBounds, { animate: false, padding: [20, 20] });
     }
 
-    listEl.innerHTML = '<li><em>Encoding multi-frame GIF with gifshot...</em></li>';
+    listEl.innerHTML = '<li><em>Encoding multi-frame GIF...</em></li>';
 
-    // Compile using gifshot
-    gifshot.createGIF({
-      images: frameCanvases,
-      interval: 0.9,
-      numFrames: frameCanvases.length,
-      width: targetWidth,
-      height: targetHeight
-    }, function(obj) {
-      if (!obj.error) {
-        const image = obj.image; // Base64 data URI
-        const a = document.createElement('a');
-        a.href = image;
-        
-        const now = new Date();
-        const timestamp = now.getFullYear().toString() +
-                          String(now.getMonth() + 1).padStart(2, '0') +
-                          String(now.getDate()).padStart(2, '0') + '-' +
-                          String(now.getHours()).padStart(2, '0') +
-                          String(now.getMinutes()).padStart(2, '0') +
-                          String(now.getSeconds()).padStart(2, '0');
+    gif.removeAllListeners('finished');
+    gif.on('finished', function(blob) {
+      activeGif = null;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      const now = new Date();
+      const timestamp = now.getFullYear().toString() +
+                        String(now.getMonth() + 1).padStart(2, '0') +
+                        String(now.getDate()).padStart(2, '0') + '-' +
+                        String(now.getHours()).padStart(2, '0') +
+                        String(now.getMinutes()).padStart(2, '0') +
+                        String(now.getSeconds()).padStart(2, '0');
 
-        const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
-        a.download = `can-expand-${safeName}-${timestamp}.gif`;
-        
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        alert('GIF export failed: ' + (obj.errorCode || 'Unknown error'));
-      }
+      const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
+      a.download = `can-expand-${safeName}-${timestamp}.gif`;
+      
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       isReplaying = false;
       if (replayBtn) replayBtn.disabled = false;
@@ -268,6 +269,24 @@ async function exportGIF() {
       if (continentSelect) continentSelect.disabled = false;
       renderHistoryUI();
     });
+
+    const exportTimeout = setTimeout(() => {
+      if (isReplaying) {
+        console.warn('GIF encoding timed out, forcing reset...');
+        isReplaying = false;
+        if (replayBtn) replayBtn.disabled = false;
+        if (exportBtn) exportBtn.disabled = false;
+        if (continentSelect) continentSelect.disabled = false;
+        renderHistoryUI();
+        alert('GIF export timed out.');
+      }
+    }, 15000);
+
+    try {
+      gif.running = false;
+    } catch (e) {}
+    
+    gif.render();
 
   } catch (err) {
     console.error('GIF export error:', err);

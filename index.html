@@ -989,6 +989,14 @@
 
     async function exportGIF() {
       if (isReplaying) return;
+
+      // Clear out any stray running instances just in case
+      try {
+        if (typeof gif !== 'undefined' && gif && gif.running) {
+          isReplaying = false;
+          return;
+        }
+      } catch (e) {}
       
       const currentContinent = document.getElementById('continentSelect').value;
       const filteredLog = historyLog.filter(entry => entry.continent === currentContinent);

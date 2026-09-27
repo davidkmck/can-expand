@@ -424,24 +424,24 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
 // Check for immediate physical neighbors (Wide centroid distance, BUT strict border overlap required)
         const neighbors = getNeighboringEntities(feature, 2500, 99, true);
         
-        if (neighbors.length > 0) {
+      if (neighbors.length > 0) {
           // Standard case: It has physical neighbors, only show those immediate borders
           neighbors.forEach(targetCountry => {
             const btn = document.createElement('button');
             btn.disabled = isReplaying;
             btn.className = 'action-btn';
             
-            if (targetCountry.type === 'INDEPENDENT') {
-              btn.style.background = '#4a148c'; 
-              btn.innerText = `Join ${formatName(targetCountry.name)}`;
-            } else {
-              btn.style.background = getSovereignColor(targetCountry.key);
-              btn.innerText = `Join ${formatName(targetCountry.key)}`;
-            }
+            // Set background dynamically to match the map
+            btn.style.background = getCountryColor(targetCountry);
+            
+            // Use .name for independents, and fallback to .key if name isn't set
+            const displayName = targetCountry.type === 'INDEPENDENT' ? targetCountry.name : targetCountry.key;
+            btn.innerText = `Join ${formatName(displayName)}`;
+            
             btn.onclick = () => changeStatus(feature, targetCountry);
             actionsEl.appendChild(btn);
           });
-        } 
+        }
         else {
           // Island / Isolated fallback: If it has zero immediate physical neighbors, 
           // allow long-distance diplomatic reach (up to 4500 km, closest 4)
@@ -457,8 +457,14 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
               const btn = document.createElement('button');
               btn.disabled = isReplaying;
               btn.className = 'action-btn';
-              btn.style.background = targetCountry.type === 'INDEPENDENT' ? '#4a148c' : getSovereignColor(targetCountry.key);
-              btn.innerText = `Join ${formatName(targetCountry.name)}`;
+              
+              // Set background dynamically to match the map
+              btn.style.background = getCountryColor(targetCountry);
+              
+              // Use .name for independents, and fallback to .key if name isn't set
+              const displayName = targetCountry.type === 'INDEPENDENT' ? targetCountry.name : targetCountry.key;
+              btn.innerText = `Join ${formatName(displayName)}`;
+              
               btn.onclick = () => changeStatus(feature, targetCountry);
               actionsEl.appendChild(btn);
             });
@@ -604,6 +610,17 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
       });
     }
 
+    
+    function getCountryColor(country) {
+      if (country.type === 'INDEPENDENT') {
+        const hash = country.key.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0);
+        const memberCount = getMemberCount(country.key);
+        return memberCount === 1 
+          ? INDEPENDENT_PALETTE[Math.abs(hash) % INDEPENDENT_PALETTE.length]
+          : UNION_PALETTE[Math.abs(hash) % UNION_PALETTE.length];
+      }
+      return getSovereignColor(country.key);
+    }
 
    function renameUnion(oldKey) {
       if (isReplaying) return;

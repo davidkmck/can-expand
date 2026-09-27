@@ -172,7 +172,6 @@ activeGif = new GIF({
     refreshCountryLabels();
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    const captureFrame = async (isFinal = false) => {
 
 const captureFrame = async (isFinal = false) => {
       const canvas = await html2canvas(mapElement, { 

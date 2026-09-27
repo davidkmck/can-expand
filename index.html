@@ -764,7 +764,7 @@ if (changed) {
   if (exportBtn) exportBtn.disabled = true;
   if (continentSelect) continentSelect.disabled = true;
 
-  listEl.innerHTML = '<li><em>Calculating focus frame...</em></li>';
+  listEl.innerHTML = '<li><em>Adding country labels & preparing frames...</em></li>';
 
   // 1. Fetch worker locally to bypass cross-origin restrictions
   const workerReq = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
@@ -805,6 +805,51 @@ if (changed) {
   }
   await new Promise(resolve => setTimeout(resolve, 400)); // Let map settle completely
 
+  // 4. CREATE COUNTRY/UNION LABELS OVERLAY (Dynamically grouped by current country/union key)
+  const labelMarkers = [];
+  
+  function refreshCountryLabels() {
+    // Clear existing markers first if updating
+    labelMarkers.forEach(m => map.removeLayer(m));
+    labelMarkers.length = 0;
+
+    // Group raw features by their current active country/union key
+    const countryGroups = {};
+    rawFeatures.forEach(feat => {
+      const data = getCountryData(feat);
+      const groupKey = data.key;
+      if (!countryGroups[groupKey]) {
+        countryGroups[groupKey] = {
+          name: data.name === 'United States of America' ? 'USA' : data.name,
+          features: []
+        };
+      }
+      countryGroups[groupKey].features.push(feat);
+    });
+
+    // Place a label at the centroid of each country/union group
+    Object.values(countryGroups.slice ? Object.values(countryGroups) : Object.keys(countryGroups).map(k => countryGroups[k])).forEach(group => {
+      try {
+        // Combine features in this union into a turf collection to find its true center
+        const turfCollection = turf.featureCollection(group.features);
+        const center = turf.centerOfMass(turfCollection);
+        const coords = center.geometry.coordinates; // [lng, lat]
+
+        const labelIcon = L.divIcon({
+          className: 'gif-country-label',
+          html: `<div style="background: rgba(255, 255, 255, 0.85); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; color: #111; text-align: center; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.3); pointer-events: none; border: 1px solid rgba(0,0,0,0.1);">${group.name}</div>`,
+          iconSize: [80, 20],
+          iconAnchor: [40, 10]
+        });
+
+        const marker = L.marker([coords[1], coords[0]], { icon: labelIcon }).addTo(map);
+        labelMarkers.push(marker);
+      } catch (e) {}
+    });
+  }
+
+  refreshCountryLabels();
+
   const mapElement = document.getElementById('map');
   const targetPane = mapElement.querySelector('.leaflet-overlay-pane') || mapElement;
   
@@ -824,14 +869,15 @@ if (changed) {
     height: targetHeight
   });
 
-  // 4. Backup current state and reset map for replay
+  // 5. Backup current state and reset map for replay
   const finalState = JSON.parse(JSON.stringify(stateStatus));
   for (let key in stateStatus) delete stateStatus[key];
   geojsonLayer.setStyle(style);
+  refreshCountryLabels();
   await new Promise(resolve => setTimeout(resolve, 200));
 
   const captureFrame = async () => {
-    const canvas = await html2canvas(targetPane, { 
+    const canvas = await html2canvas(mapElement, { // Captures map + country labels together
       useCORS: true,
       scale: 1,
       backgroundColor: null,
@@ -854,7 +900,7 @@ if (changed) {
   // Capture initial base map frame
   await captureFrame();
 
-  // 5. Step through history cleanly
+  // 6. Step through history cleanly and refresh country labels per frame as unions shift/rename
   for (let i = 0; i < historyLog.length; i++) {
     const entry = historyLog[i];
 
@@ -872,12 +918,16 @@ if (changed) {
 
     if (entry.continent === currentContinent) {
       geojsonLayer.setStyle(style);
+      refreshCountryLabels(); // Update label positions/names if unions change
       await new Promise(resolve => setTimeout(resolve, 200)); 
       await captureFrame();
     }
   }
 
-  // 6. Restore original state
+  // 7. Cleanup temporary country labels from live map
+  labelMarkers.forEach(m => map.removeLayer(m));
+
+  // 8. Restore original state
   Object.assign(stateStatus, finalState);
   geojsonLayer.setStyle(style);
   
@@ -886,9 +936,9 @@ if (changed) {
     map.fitBounds(defaultBounds, { animate: false, padding: [20, 20] });
   }
 
-  listEl.innerHTML = '<li><em>Processing clean GIF...</em></li>';
+  listEl.innerHTML = '<li><em>Processing labeled country GIF...</em></li>';
 
-  // 7. Render, timestamp, and download
+  // 9. Render, timestamp, and download
   gif.on('finished', function(blob) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

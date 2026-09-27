@@ -279,7 +279,18 @@ const captureFrame = async (isFinal = false) => {
       gif.running = false;
     } catch (e) {}
     
-    gif.render();
+clearTimeout(exportTimeout); // Clear any hanging timers first
+
+    try {
+      if (typeof gif.render === 'function') {
+        gif.render();
+      } else {
+        throw new Error('GIF render method not found');
+      }
+    } catch (renderErr) {
+      console.error('Immediate render error:', renderErr);
+      throw renderErr;
+    }
 
   } catch (err) {
     console.error('GIF export error:', err);

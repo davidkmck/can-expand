@@ -1151,18 +1151,18 @@
         const originalWidth = Math.round(rect.width) || mapElement.offsetWidth;
         const originalHeight = Math.round(rect.height) || mapElement.offsetHeight;
 
-        const maxDimension = isMobile ? 400 : 750;
+        const maxDimension = isMobile ? 300 : 750;
         const scaleFactor = Math.min(1, maxDimension / originalWidth);
         const targetWidth = Math.round(originalWidth * scaleFactor);
         const targetHeight = Math.round(originalHeight * scaleFactor);
 
-        // Configure GIF encoder safely for mobile (workers: 0) vs PC (workers: 2)
-        const gifConfig = {
-          workers: isMobile ? 0 : 2,
-          quality: isMobile ? 30 : 10,
+        const gif = new GIF({
+          workers: 0,
+          quality: isMobile ? 40 : 10, // Higher number = faster, lower quality encoding
           width: targetWidth,
           height: targetHeight
-        };
+        });
+        
         if (workerUrl) gifConfig.workerScript = workerUrl;
 
         const gif = new GIF(gifConfig);

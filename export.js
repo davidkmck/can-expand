@@ -241,6 +241,7 @@ const captureFrame = async (isFinal = false) => {
 
     gif.removeAllListeners('finished');
     gif.on('finished', function(blob) {
+      console.log('GIF encoding finished successfully! Blob size:', blob.size);
       activeGif = null;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

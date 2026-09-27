@@ -1,11 +1,7 @@
-// export.js - Handles animated GIF recording and exporting
+// export.js - Handles animated GIF recording and exporting with gifshot
 
 async function exportGIF() {
   if (isReplaying) return;
-
-  if (typeof activeGif !== 'undefined' && activeGif) {
-    try { activeGif.running = false; } catch (e) {}
-  }
   
   const currentContinent = document.getElementById('continentSelect').value;
   const filteredLog = historyLog.filter(entry => entry.continent === currentContinent);
@@ -162,29 +158,22 @@ async function exportGIF() {
     const targetWidth = Math.round(originalWidth * scaleFactor);
     const targetHeight = Math.round(originalHeight * scaleFactor);
 
-activeGif = new GIF({
-      workers: 0,
-      quality: 10,       // Low number = skips heavy color-matching passes and encodes instantly
-      sampleInterval: 10, // Samples every 10th pixel to speed up quantization drastically
-      width: targetWidth,
-      height: targetHeight
-    });
-    
-    const gif = activeGif;
-
     const finalState = JSON.parse(JSON.stringify(stateStatus));
     for (let key in stateStatus) delete stateStatus[key];
     geojsonLayer.setStyle(style);
     refreshCountryLabels();
     await new Promise(resolve => setTimeout(resolve, 200));
 
-const captureFrame = async (isFinal = false) => {
+    // Collect canvas elements as image data URLs or canvas objects for gifshot
+    const frameCanvases = [];
+
+    const captureFrame = async (isFinal = false) => {
       const canvas = await html2canvas(mapElement, { 
         useCORS: true,
         scale: 1,
         backgroundColor: null,
-        width: targetWidth,   // Render small natively
-        height: targetHeight, // Render small natively
+        width: targetWidth,
+        height: targetHeight,
         windowWidth: originalWidth,
         windowHeight: originalHeight
       });
@@ -198,12 +187,13 @@ const captureFrame = async (isFinal = false) => {
       ctx.fillRect(0, 0, targetWidth, targetHeight);
       ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
 
-      const frameDelay = isFinal ? 2500 : 900;
-      gif.addFrame(resizeCanvas, { delay: frameDelay });
+      frameCanvases.push(resizeCanvas);
     };
 
+    // 1. Capture initial state
     await captureFrame(false);
 
+    // 2. Capture history steps
     for (let i = 0; i < historyLog.length; i++) {
       const entry = historyLog[i];
 
@@ -227,6 +217,7 @@ const captureFrame = async (isFinal = false) => {
       }
     }
 
+    // 3. Capture final frame
     await captureFrame(true);
 
     activeLabelMarkers.forEach(m => map.removeLayer(m));
@@ -238,36 +229,38 @@ const captureFrame = async (isFinal = false) => {
       map.fitBounds(defaultBounds, { animate: false, padding: [20, 20] });
     }
 
-    listEl.innerHTML = '<li><em>Encoding multi-frame GIF...</em></li>';
+    listEl.innerHTML = '<li><em>Encoding multi-frame GIF with gifshot...</em></li>';
 
-    // Track real-time progress so you can see if it's crunching or stalled
-    gif.on('progress', function(p) {
-      console.log(`GIF encoding progress: ${Math.round(p * 100)}%`);
-    });
-    
-    gif.removeAllListeners('finished');
-    gif.on('finished', function(blob) {
-      console.log('GIF encoding finished successfully! Blob size:', blob.size);
-      activeGif = null;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      
-      const now = new Date();
-      const timestamp = now.getFullYear().toString() +
-                        String(now.getMonth() + 1).padStart(2, '0') +
-                        String(now.getDate()).padStart(2, '0') + '-' +
-                        String(now.getHours()).padStart(2, '0') +
-                        String(now.getMinutes()).padStart(2, '0') +
-                        String(now.getSeconds()).padStart(2, '0');
+    // Compile using gifshot
+    gifshot.createGIF({
+      images: frameCanvases,
+      interval: 0.9,
+      numFrames: frameCanvases.length,
+      width: targetWidth,
+      height: targetHeight
+    }, function(obj) {
+      if (!obj.error) {
+        const image = obj.image; // Base64 data URI
+        const a = document.createElement('a');
+        a.href = image;
+        
+        const now = new Date();
+        const timestamp = now.getFullYear().toString() +
+                          String(now.getMonth() + 1).padStart(2, '0') +
+                          String(now.getDate()).padStart(2, '0') + '-' +
+                          String(now.getHours()).padStart(2, '0') +
+                          String(now.getMinutes()).padStart(2, '0') +
+                          String(now.getSeconds()).padStart(2, '0');
 
-      const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
-      a.download = `can-expand-${safeName}-${timestamp}.gif`;
-      
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+        const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
+        a.download = `can-expand-${safeName}-${timestamp}.gif`;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        alert('GIF export failed: ' + (obj.errorCode || 'Unknown error'));
+      }
 
       isReplaying = false;
       if (replayBtn) replayBtn.disabled = false;
@@ -275,25 +268,6 @@ const captureFrame = async (isFinal = false) => {
       if (continentSelect) continentSelect.disabled = false;
       renderHistoryUI();
     });
-
-// Hard cap at 15 seconds max
-        const exportTimeout = setTimeout(() => {
-          if (isReplaying) {
-            console.warn('GIF encoding timed out after 15s, forcing reset...');
-            isReplaying = false;
-            if (replayBtn) replayBtn.disabled = false;
-            if (exportBtn) exportBtn.disabled = false;
-            if (continentSelect) continentSelect.disabled = false;
-            renderHistoryUI();
-            alert('GIF export timed out (15s limit reached). Try exporting fewer history steps.');
-          }
-        }, 15000); // 15 seconds max
-
-    try {
-      gif.running = false;
-    } catch (e) {}
-    
-    gif.render();
 
   } catch (err) {
     console.error('GIF export error:', err);

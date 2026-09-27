@@ -1,4 +1,4 @@
-const CACHE_NAME = 'can-expand-v18';
+const CACHE_NAME = 'can-expand-v19';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

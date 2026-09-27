@@ -239,6 +239,11 @@ const captureFrame = async (isFinal = false) => {
 
     listEl.innerHTML = '<li><em>Encoding multi-frame GIF...</em></li>';
 
+    // Track real-time progress so you can see if it's crunching or stalled
+    gif.on('progress', function(p) {
+      console.log(`GIF encoding progress: ${Math.round(p * 100)}%`);
+    });
+    
     gif.removeAllListeners('finished');
     gif.on('finished', function(blob) {
       console.log('GIF encoding finished successfully! Blob size:', blob.size);
@@ -270,17 +275,18 @@ const captureFrame = async (isFinal = false) => {
       renderHistoryUI();
     });
 
-    const exportTimeout = setTimeout(() => {
-      if (isReplaying) {
-        console.warn('GIF encoding timed out, forcing reset...');
-        isReplaying = false;
-        if (replayBtn) replayBtn.disabled = false;
-        if (exportBtn) exportBtn.disabled = false;
-        if (continentSelect) continentSelect.disabled = false;
-        renderHistoryUI();
-        alert('GIF export timed out.');
-      }
-    }, 60000);
+// Hard cap at 15 seconds max
+        const exportTimeout = setTimeout(() => {
+          if (isReplaying) {
+            console.warn('GIF encoding timed out after 15s, forcing reset...');
+            isReplaying = false;
+            if (replayBtn) replayBtn.disabled = false;
+            if (exportBtn) exportBtn.disabled = false;
+            if (continentSelect) continentSelect.disabled = false;
+            renderHistoryUI();
+            alert('GIF export timed out (15s limit reached). Try exporting fewer history steps.');
+          }
+        }, 15000); // 15 seconds max
 
     try {
       gif.running = false;

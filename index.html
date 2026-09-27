@@ -843,7 +843,7 @@ let activeLabelMarkers = [];
         });
       }
 */
-      let activeLabelMarkers = [];
+  let activeLabelMarkers = [];
       let lockedCountryCenters = null; // Caches centers so large nations stay locked in place
       
       function refreshCountryLabels() {
@@ -894,16 +894,14 @@ let activeLabelMarkers = [];
               lockedCountryCenters[groupKey] = coords;
             }
 
-            // Proportional font sizing: scales up cleanly based on how many constituent features make up the nation/union
+            // Proportional sizing tiers based on constituent state/province counts
             const featureCount = group.features.length;
             const isMegaNation = featureCount > 10; // e.g., USA, Canada
             const isMediumNation = featureCount > 3;
-
-            // Tailored font size tiers ensuring large nations stand out proportionally over smaller ones
             const fontSize = isMegaNation ? 22 : (isMediumNation ? 16 : 13);
             const anchorOffset = Math.round(fontSize * 3.5);
 
-            // Clean, fully transparent background with crisp high-contrast text shadow
+            // Fully transparent background with high-contrast outline text shadow
             const labelIcon = L.divIcon({
               className: 'gif-country-label',
               html: `<div style="background: transparent; font-size: ${fontSize}px; font-weight: 900; color: #111111; text-align: center; white-space: nowrap; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 2px 4px rgba(0,0,0,0.4); pointer-events: none; letter-spacing: 0.5px;">${group.name}</div>`,

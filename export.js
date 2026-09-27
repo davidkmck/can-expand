@@ -156,8 +156,10 @@ function refreshCountryLabels() {
 
 activeGif = new GIF({
       workers: 0,
-      quality: 10,        // Keeps it fast without locking the thread
-      sampleInterval: 10, // Samples pixels in chunks to breeze past the 0% mark instantly
+      quality: 20,           // Higher quality number = faster, coarser color quantization
+      transparent: null,     // Disables transparency matching overhead
+      dither: false,         // Disables color dithering calculations for max speed
+      sampleInterval: 15,    // Samples fewer pixels per frame
       width: targetWidth,
       height: targetHeight
     });
@@ -271,7 +273,7 @@ const captureFrame = async (isFinal = false) => {
         renderHistoryUI();
         alert('GIF export timed out.');
       }
-    }, 15000);
+    }, 30000);
 
     try {
       gif.running = false;

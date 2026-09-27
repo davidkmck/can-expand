@@ -82,32 +82,32 @@ async function exportGIF() {
     let lockedCountryCenters = null;
 
     /////////////////////////
-    
-function refreshCountryLabels() {
+
+    function refreshCountryLabels() {
       activeLabelMarkers.forEach(m => map.removeLayer(m));
       activeLabelMarkers = [];
 
       const countryGroups = {};
-      
-      // Use the final state feature mapping to anchor labels precisely where they end up
       rawFeatures.forEach(feat => {
-        const id = getFeatureId(feat);
-        // Look up its final destination status rather than intermediate steps
-       // const resolvedCountry = finalState[id] || getCountryData(feat);
-        const resolvedCountry = (finalState && finalState[id]) ? finalState[id] : (stateStatus[id] || getCountryData(feat));
-        
-        const groupKey = resolvedCountry.key;
+        const data = getCountryData(feat);
+        const groupKey = data.key;
         
         const isBaselineMajor = (groupKey === 'Canada' || groupKey === 'United States of America' || groupKey === 'Mexico');
-        if (isBaselineMajor || everActiveKeys.has(groupKey) || everActiveKeys.has(resolvedCountry.name)) {
+        if (isBaselineMajor || everActiveKeys.has(groupKey) || everActiveKeys.has(data.name)) {
           try {
-            if (!countryGroups[groupKey]) {
-              countryGroups[groupKey] = {
-                name: resolvedCountry.name === 'United States of America' ? 'USA' : resolvedCountry.name,
-                features: []
-              };
+            const featCenter = turf.centroid(feat);
+            const coords = featCenter.geometry.coordinates;
+            const latLng = L.latLng(coords[1], coords[0]);
+            
+            if (currentBounds.contains(latLng)) {
+              if (!countryGroups[groupKey]) {
+                countryGroups[groupKey] = {
+                  name: data.name === 'United States of America' ? 'USA' : data.name,
+                  features: []
+                };
+              }
+              countryGroups[groupKey].features.push(feat);
             }
-            countryGroups[groupKey].features.push(feat);
           } catch (e) {}
         }
       });
@@ -117,28 +117,26 @@ function refreshCountryLabels() {
           const turfCollection = turf.featureCollection(group.features);
           const center = turf.centerOfMass(turfCollection);
           const coords = center.geometry.coordinates;
-          const latLng = L.latLng(coords[1], coords[0]);
 
-          if (currentBounds.contains(latLng)) {
-            const featureCount = group.features.length;
-            const isMegaNation = featureCount > 10;
-            const isMediumNation = featureCount > 3;
-            const fontSize = isMegaNation ? 24 : (isMediumNation ? 18 : 14);
-            const anchorOffset = Math.round(fontSize * 3.5);
+          const featureCount = group.features.length;
+          const isMegaNation = featureCount > 10;
+          const isMediumNation = featureCount > 3;
+          const fontSize = isMegaNation ? 24 : (isMediumNation ? 18 : 14);
+          const anchorOffset = Math.round(fontSize * 3.5);
 
-            const labelIcon = L.divIcon({
-              className: 'gif-country-label',
-              html: `<div style="background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: ${fontSize}px; font-weight: 800; color: #111111; text-align: center; white-space: nowrap; text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff, 0 2px 5px rgba(0,0,0,0.3); pointer-events: none; letter-spacing: 0.5px;">${group.name}</div>`,
-              iconSize: [fontSize * 8, fontSize * 1.6],
-              iconAnchor: [anchorOffset, fontSize * 0.8]
-            });
+          const labelIcon = L.divIcon({
+            className: 'gif-country-label',
+            html: `<div style="background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: ${fontSize}px; font-weight: 800; color: #111111; text-align: center; white-space: nowrap; text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff, 0 2px 5px rgba(0,0,0,0.3); pointer-events: none; letter-spacing: 0.5px;">${group.name}</div>`,
+            iconSize: [fontSize * 8, fontSize * 1.6],
+            iconAnchor: [anchorOffset, fontSize * 0.8]
+          });
 
-            const marker = L.marker([coords[1], coords[0]], { icon: labelIcon }).addTo(map);
-            activeLabelMarkers.push(marker);
-          }
+          const marker = L.marker([coords[1], coords[0]], { icon: labelIcon }).addTo(map);
+          activeLabelMarkers.push(marker);
         } catch (e) {}
       });
     }
+
 
 
     ////////////////////

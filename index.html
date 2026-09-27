@@ -350,10 +350,12 @@
       geojsonLayer.resetStyle(e.target);
     }
 
-    function getNeighboringEntities(targetFeature, maxDistance = 1500, limit = 99, requireBboxOverlap = false) {
+
+    function getNeighboringEntities(targetFeature, maxDistance = 3000, limit = 99) {
       const neighborMap = new Map();
       const targetId = getFeatureId(targetFeature);
       const targetCenter = turf.centroid(targetFeature);
+      const targetBbox = turf.bbox(targetFeature);
       const currentCountry = getCountryData(targetFeature);
 
       rawFeatures.forEach(feat => {
@@ -361,6 +363,18 @@
         if (featId === targetId) return;
 
         try {
+          const featBbox = turf.bbox(feat);
+          
+          // STRICT BORDER TOUCH CHECK: 
+          // Check if the bounding boxes overlap or are immediately adjacent (within a tiny 0.5-degree touch buffer).
+          // This ensures continental regions only connect to nations they physically share a border with.
+          const isTouching = !(
+            targetBbox[0] > featBbox[2] + 0.5 || targetBbox[2] < featBbox[0] - 0.5 ||
+            targetBbox[1] > featBbox[3] + 0.5 || targetBbox[3] < featBbox[1] - 0.5
+          );
+
+          if (!isTouching) return; // Skip if they don't touch or share a border!
+
           const featCenter = turf.centroid(feat);
           const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
           
@@ -380,6 +394,9 @@
         .slice(0, limit)
         .map(item => item.country);
     }
+
+    
+
 
     function updatePanel(feature) {
       if (!feature) return;

@@ -194,7 +194,7 @@ const captureFrame = async (isFinal = false) => {
       ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
 
       const frameDelay = isFinal ? 2500 : 900;
-      gif.addFrame(resizeCanvas, { delay: frameDelay });
+      gif.addFrame(resizeCanvas, { delay: frameDelay, copy: true });
     };
 
     await captureFrame(false);

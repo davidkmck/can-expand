@@ -730,6 +730,8 @@ if (changed) {
     }
 
 
+
+
     async function exportGIF() {
   if (isReplaying || historyLog.length === 0) return;
   
@@ -753,14 +755,13 @@ if (changed) {
   if (exportBtn) exportBtn.disabled = true;
   if (continentSelect) continentSelect.disabled = true;
 
-  listEl.innerHTML = '<li><em>Preparing smart-crop frames...</em></li>';
+  listEl.innerHTML = '<li><em>Preparing frames...</em></li>';
 
   // 1. Fetch worker locally to bypass cross-origin restrictions
   const workerReq = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
   const workerBlob = await workerReq.blob();
   const workerUrl = URL.createObjectURL(workerBlob);
 
-  // Set up GIF dimensions (downscaled slightly for mobile performance & smooth output)
   const mapElement = document.getElementById('map');
   const targetWidth = Math.min(mapElement.offsetWidth, 600);
   const targetHeight = Math.min(mapElement.offsetHeight, 600);
@@ -773,24 +774,29 @@ if (changed) {
     height: targetHeight
   });
 
-  // 2. Backup current state and reset map
+  // 2. Lock the map to the correct continent bounds before capturing anything
+  const continentBounds = CONTINENT_BOUNDS[currentContinent];
+  if (continentBounds) {
+    map.fitBounds(continentBounds, { animate: false, padding: [30, 30] });
+  }
+  await new Promise(resolve => setTimeout(resolve, 300)); // Let map settle
+
+  // 3. Backup current state and reset map for replay
   const finalState = JSON.parse(JSON.stringify(stateStatus));
   for (let key in stateStatus) delete stateStatus[key];
   geojsonLayer.setStyle(style);
-  await new Promise(resolve => setTimeout(resolve, 250));
+  await new Promise(resolve => setTimeout(resolve, 200));
 
-  // Target Leaflet's renderer pane directly to avoid mobile corner-clipping bugs
   const leafletPane = mapElement.querySelector('.leaflet-map-pane') || mapElement;
 
   const captureFrame = async () => {
     const canvas = await html2canvas(leafletPane, { 
       useCORS: true,
-      scale: 1, // Keeps mobile memory footprint safe
+      scale: 1,
       width: mapElement.offsetWidth,
       height: mapElement.offsetHeight
     });
 
-    // Resize cleanly down to target dimensions using an offscreen canvas
     const resizeCanvas = document.createElement('canvas');
     resizeCanvas.width = targetWidth;
     resizeCanvas.height = targetHeight;
@@ -803,7 +809,7 @@ if (changed) {
   // Capture initial base map frame
   await captureFrame();
 
-  // 3. Step through history, updating the state step-by-step
+  // 4. Step through history cleanly without shifting the map view
   for (let i = 0; i < historyLog.length; i++) {
     const entry = historyLog[i];
 
@@ -819,43 +825,29 @@ if (changed) {
         stateStatus[entry.id] = entry.targetCountryObj; 
     }
 
-    // Only capture frames for events belonging to the active continent
     if (entry.continent === currentContinent) {
       geojsonLayer.setStyle(style);
-      
-      // If this specific feature changed, optionally auto-pan the map to center on it!
-      if (entry.id) {
-        const changedFeature = rawFeatures.find(f => getFeatureId(f) === entry.id);
-        if (changedFeature) {
-          try {
-            const bounds = L.geoJSON(changedFeature).getBounds();
-            map.panInsideBounds(bounds, { animate: false });
-          } catch(e) {}
-        }
-      }
-
       await new Promise(resolve => setTimeout(resolve, 250)); 
       await captureFrame();
     }
   }
 
-  // 4. Restore original state
+  // 5. Restore original state
   Object.assign(stateStatus, finalState);
   geojsonLayer.setStyle(style);
   
-  // Re-fit map to original continent bounds
-  const bounds = CONTINENT_BOUNDS[currentContinent];
-  if (bounds) map.fitBounds(bounds, { padding: [30, 30] });
+  if (continentBounds) {
+    map.fitBounds(continentBounds, { animate: false, padding: [30, 30] });
+  }
 
-  listEl.innerHTML = '<li><em>Processing GIF with timestamp...</em></li>';
+  listEl.innerHTML = '<li><em>Processing GIF...</em></li>';
 
-  // 5. Render, generate timestamped name, and download
+  // 6. Render, timestamp, and download
   gif.on('finished', function(blob) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     
-    // Generate clean timestamp (e.g., 20260927-133500)
     const now = new Date();
     const timestamp = now.getFullYear().toString() +
                       String(now.getMonth() + 1).padStart(2, '0') +
@@ -872,7 +864,6 @@ if (changed) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    // Re-enable UI
     isReplaying = false;
     if (replayBtn) replayBtn.disabled = false;
     if (exportBtn) exportBtn.disabled = false;
@@ -882,6 +873,8 @@ if (changed) {
 
   gif.render();
 }
+
+    
 
     
     // Initialize

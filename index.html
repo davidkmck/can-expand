@@ -681,6 +681,8 @@
       renderHistoryUI();
     }
 
+
+
     async function exportGIF() {
       if (isReplaying || historyLog.length === 0) return;
       
@@ -704,7 +706,7 @@
       if (exportBtn) exportBtn.disabled = true;
       if (continentSelect) continentSelect.disabled = true;
 
-      listEl.innerHTML = '<li><em>Calculating focus frame & labels...</em></li>';
+      listEl.innerHTML = '<li><em>Calculating focus frame & persistent labels...</em></li>';
 
       const workerReq = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
       const workerBlob = await workerReq.blob();
@@ -750,48 +752,34 @@
 
       currentBounds = map.getBounds();
 
-      const labelMarkers = [];
+      const labelMarkers = symbol => [];
+      let activeLabelMarkers = [];
       
-      function refreshCountryLabels(activeLogEntry = null) {
-        labelMarkers.forEach(m => map.removeLayer(m));
-        labelMarkers.length = 0;
-
-        const activeKeys = new Set();
-        if (activeLogEntry) {
-          if (activeLogEntry.action === 'RENAME') {
-            activeKeys.add(activeLogEntry.to);
-          } else if (activeLogEntry.targetCountryObj) {
-            activeKeys.add(activeLogEntry.targetCountryObj.key);
-          }
-        } else {
-          filteredLog.forEach(e => {
-            if (e.action === 'RENAME') activeKeys.add(e.to);
-            if (e.targetCountryObj) activeKeys.add(e.targetCountryObj.key);
-          });
-        }
+      function refreshCountryLabels() {
+        activeLabelMarkers.forEach(m => map.removeLayer(m));
+        activeLabelMarkers = [];
 
         const countryGroups = {};
         rawFeatures.forEach(feat => {
           const data = getCountryData(feat);
           const groupKey = data.key;
           
-          if (activeKeys.has(groupKey)) {
-            try {
-              const featCenter = turf.centroid(feat);
-              const coords = featCenter.geometry.coordinates;
-              const latLng = L.latLng(coords[1], coords[0]);
-              
-              if (currentBounds.contains(latLng)) {
-                if (!countryGroups[groupKey]) {
-                  countryGroups[groupKey] = {
-                    name: data.name === 'United States of America' ? 'USA' : data.name,
-                    features: []
-                  };
-                }
-                countryGroups[groupKey].features.push(feat);
+          try {
+            const featCenter = turf.centroid(feat);
+            const coords = featCenter.geometry.coordinates;
+            const latLng = L.latLng(coords[1], coords[0]);
+            
+            // Only group features that fall *within* the visible GIF bounds
+            if (currentBounds.contains(latLng)) {
+              if (!countryGroups[groupKey]) {
+                countryGroups[groupKey] = {
+                  name: data.name === 'United States of America' ? 'USA' : data.name,
+                  features: []
+                };
               }
-            } catch (e) {}
-          }
+              countryGroups[groupKey].features.push(feat);
+            }
+          } catch (e) {}
         });
 
         Object.values(countryGroups).forEach(group => {
@@ -808,7 +796,7 @@
             });
 
             const marker = L.marker([coords[1], coords[0]], { icon: labelIcon }).addTo(map);
-            labelMarkers.push(marker);
+            activeLabelMarkers.push(marker);
           } catch (e) {}
         });
       }
@@ -835,7 +823,7 @@
       const finalState = JSON.parse(JSON.stringify(stateStatus));
       for (let key in stateStatus) delete stateStatus[key];
       geojsonLayer.setStyle(style);
-      refreshCountryLabels(null);
+      refreshCountryLabels();
       await new Promise(resolve => setTimeout(resolve, 200));
 
       const captureFrame = async () => {
@@ -878,13 +866,13 @@
 
         if (entry.continent === currentContinent) {
           geojsonLayer.setStyle(style);
-          refreshCountryLabels(entry); 
+          refreshCountryLabels(); 
           await new Promise(resolve => setTimeout(resolve, 250)); 
           await captureFrame();
         }
       }
 
-      labelMarkers.forEach(m => map.removeLayer(m));
+      activeLabelMarkers.forEach(m => map.removeLayer(m));
 
       Object.assign(stateStatus, finalState);
       geojsonLayer.setStyle(style);
@@ -926,6 +914,7 @@
 
       gif.render();
     }
+    
     
     // Initialize
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson') 

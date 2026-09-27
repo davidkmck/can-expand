@@ -237,6 +237,9 @@
   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
   
   <script>
+
+    let activeGif = null;
+    
     // State Tracking
     const stateStatus = {}; 
     const historyLog = [];
@@ -990,13 +993,12 @@
     async function exportGIF() {
       if (isReplaying) return;
 
-      // Clear out any stray running instances just in case
-      try {
-        if (typeof gif !== 'undefined' && gif && gif.running) {
-          isReplaying = false;
-          return;
-        }
-      } catch (e) {}
+      // Force reset any stuck state from previous failed attempts
+      if (typeof gif !== 'undefined' && gif) {
+        try { gif.running = false; } catch (e) {}
+      }
+      
+
       
       const currentContinent = document.getElementById('continentSelect').value;
       const filteredLog = historyLog.filter(entry => entry.continent === currentContinent);
@@ -1154,13 +1156,18 @@
         const targetWidth = Math.round(originalWidth * scaleFactor);
         const targetHeight = Math.round(originalHeight * scaleFactor);
 
-        // For mobile, workers: 0 runs synchronously on main thread without fetching external worker scripts
-        const gif = new GIF({
+        if (typeof activeGif !== 'undefined' && activeGif) {
+          try { activeGif.running = false; } catch (e) {}
+        }
+
+        activeGif = new GIF({
           workers: isMobile ? 0 : 2,
           quality: isMobile ? 40 : 10,
           width: targetWidth,
           height: targetHeight
         });
+        
+        const gif = activeGif;
 
         const finalState = JSON.parse(JSON.stringify(stateStatus));
         for (let key in stateStatus) delete stateStatus[key];

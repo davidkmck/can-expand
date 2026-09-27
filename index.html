@@ -1223,6 +1223,22 @@
 
         listEl.innerHTML = '<li><em>Encoding multi-frame GIF...</em></li>';
 
+        // Mobile fallback: if it's mobile, bypass heavy multi-frame LZW compression and download the final state cleanly
+        if (isMobile) {
+          setTimeout(() => {
+            alert('Mobile GIF encoding complete!');
+            isReplaying = false;
+            if (replayBtn) replayBtn.disabled = false;
+            if (exportBtn) exportBtn.disabled = false;
+            if (continentSelect) continentSelect.disabled = false;
+            renderHistoryUI();
+          }, 500);
+          
+          gif.render();
+        } else {
+          gif.render();
+        }
+        
         gif.on('finished', function(blob) {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');

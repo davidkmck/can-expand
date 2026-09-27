@@ -1,10 +1,11 @@
-const CACHE_NAME = 'can-expand-v25';
+const CACHE_NAME = 'can-expand-v26';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
   './icon.png',
+  './export.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/@turf/turf@6.5.0/turf.min.js'

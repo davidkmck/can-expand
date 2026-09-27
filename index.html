@@ -1269,9 +1269,9 @@
 
         gif.render();
 
-      } catch (err) {
+    } catch (err) {
         console.error('GIF export error:', err);
-        alert('GIF export failed. Check console for details.');
+        alert('Error: ' + err.message); // This will pop up the exact error on your phone screen!
         isReplaying = false;
         if (replayBtn) replayBtn.disabled = false;
         if (exportBtn) exportBtn.disabled = false;

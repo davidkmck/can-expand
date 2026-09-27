@@ -236,8 +236,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
   
-  <script>
-
+ <script>
     let activeGif = null;
     
     // State Tracking
@@ -367,16 +366,12 @@
 
         try {
           const featBbox = turf.bbox(feat);
-          
-          // STRICT BORDER TOUCH CHECK: 
-          // Check if the bounding boxes overlap or are immediately adjacent (within a tiny 0.5-degree touch buffer).
-          // This ensures continental regions only connect to nations they physically share a border with.
           const isTouching = !(
             targetBbox[0] > featBbox[2] + 0.5 || targetBbox[2] < featBbox[0] - 0.5 ||
-            targetBbox[1] > featBbox[3] + 0.5 || targetBbox[3] < featBbox[1] - 0.5
+            targetBbox[1] > featBbox[3] + 0.5 || targetBbox[1] < featBbox[1] - 0.5
           );
 
-          if (!isTouching) return; // Skip if they don't touch or share a border!
+          if (!isTouching) return;
 
           const featCenter = turf.centroid(feat);
           const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
@@ -397,9 +392,6 @@
         .slice(0, limit)
         .map(item => item.country);
     }
-
-    
-
 
     function updatePanel(feature) {
       if (!feature) return;
@@ -428,7 +420,6 @@
         const color = getFeatureColor(feature);
         regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${color};">${country.name}</span>`;
 
-        // 1. Standard immediate bordering nations
         const neighbors = getNeighboringEntities(feature, 2500, 99, true);
         
         if (neighbors.length > 0) {
@@ -444,7 +435,6 @@
           });
         } 
 
-        // 2. Maritime / Nearby Island Transit
         const nearbyEntities = getNeighboringEntities(feature, 2000, 5);
         if (nearbyEntities.length > 0) {
           const existingButtonTexts = Array.from(actionsEl.querySelectorAll('button')).map(b => b.innerText);
@@ -704,18 +694,13 @@
       closeInfoPanel();
       renderHistoryUI();
     }
-///
-
 
     async function exportGIF() {
       if (isReplaying) return;
 
-      // Force reset any stuck state from previous failed attempts
-      if (typeof gif !== 'undefined' && gif) {
-        try { gif.running = false; } catch (e) {}
+      if (typeof activeGif !== 'undefined' && activeGif) {
+        try { activeGif.running = false; } catch (e) {}
       }
-      
-
       
       const currentContinent = document.getElementById('continentSelect').value;
       const filteredLog = historyLog.filter(entry => entry.continent === currentContinent);
@@ -860,7 +845,6 @@
           });
         }
 
-        // init GIF variables
         const mapElement = document.getElementById('map');
         const targetPane = mapElement.querySelector('.leaflet-overlay-pane') || mapElement;
         
@@ -868,18 +852,14 @@
         const originalWidth = Math.round(rect.width) || mapElement.offsetWidth;
         const originalHeight = Math.round(rect.height) || mapElement.offsetHeight;
 
-        // Scale down export dimensions to ensure lightning-fast rendering and encoding
         const maxDimension = isMobile ? 280 : 500;
         const scaleFactor = Math.min(1, maxDimension / originalWidth);
         const targetWidth = Math.round(originalWidth * scaleFactor);
         const targetHeight = Math.round(originalHeight * scaleFactor);
-        if (typeof activeGif !== 'undefined' && activeGif) {
-          try { activeGif.running = false; } catch (e) {}
-        }
 
-        const activeGif = new GIF({
+        activeGif = new GIF({
           workers: isMobile ? 0 : 2,
-          quality: isMobile ? 40 : 50, // Higher number = much faster compression pass
+          quality: isMobile ? 40 : 50,
           width: targetWidth,
           height: targetHeight
         });
@@ -904,7 +884,7 @@
           const resizeCanvas = document.createElement('canvas');
           resizeCanvas.width = targetWidth;
           resizeCanvas.height = targetHeight;
-          const ctx = resizeCanvas.getContext('2d');
+          const ctx = resizeCanvas.getContext('2d', { willReadFrequently: true });
           
           ctx.fillStyle = '#aad3df';
           ctx.fillRect(0, 0, targetWidth, targetHeight);
@@ -914,10 +894,8 @@
           gif.addFrame(resizeCanvas, { delay: frameDelay });
         };
 
-        // 1. Capture initial state frame
         await captureFrame(false);
 
-        // 2. Iterate through every history step and capture frames
         for (let i = 0; i < historyLog.length; i++) {
           const entry = historyLog[i];
 
@@ -941,7 +919,6 @@
           }
         }
 
-        // 3. Capture final state frame with pause duration
         await captureFrame(true);
 
         activeLabelMarkers.forEach(m => map.removeLayer(m));
@@ -955,10 +932,7 @@
 
         listEl.innerHTML = '<li><em>Encoding multi-frame GIF...</em></li>';
 
-
-        // Clear any old listeners to prevent duplicates
         gif.removeAllListeners('finished');
-
         gif.on('finished', function(blob) {
           activeGif = null;
           const url = URL.createObjectURL(blob);
@@ -988,7 +962,7 @@
           renderHistoryUI();
         });
 
-      const exportTimeout = setTimeout(() => {
+        const exportTimeout = setTimeout(() => {
           if (isReplaying) {
             console.warn('GIF encoding timed out, forcing reset...');
             isReplaying = false;
@@ -998,63 +972,17 @@
             renderHistoryUI();
             alert('GIF export timed out.');
           }
-        }, 30000); // Expanded to 30 seconds
+        }, 30000);
 
         try {
           gif.running = false;
         } catch (e) {}
         
         gif.render();
-    } catch (err) {
+
+      } catch (err) {
         console.error('GIF export error:', err);
         alert('GIF export failed: ' + err.message);
-        isReplaying = false;
-        if (replayBtn) replayBtn.disabled = false;
-        if (exportBtn) exportBtn.disabled = false;
-        if (continentSelect) continentSelect.disabled = false;
-        renderHistoryUI();
-      }
-    }
-
-
-        gif.on('finished', function(blob) {
-          activeGif = null; // Clear instance reference
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          
-          const now = new Date();
-          const timestamp = now.getFullYear().toString() +
-                            String(now.getMonth() + 1).padStart(2, '0') +
-                            String(now.getDate()).padStart(2, '0') + '-' +
-                            String(now.getHours()).padStart(2, '0') +
-                            String(now.getMinutes()).padStart(2, '0') +
-                            String(now.getSeconds()).padStart(2, '0');
-
-          const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
-          a.download = `can-expand-${safeName}-${timestamp}.gif`;
-          
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-
-          isReplaying = false;
-          if (replayBtn) replayBtn.disabled = false;
-          if (exportBtn) exportBtn.disabled = false;
-          if (continentSelect) continentSelect.disabled = false;
-          renderHistoryUI();
-        });
-
-        // Ensure running flag is clear before launching render thread
-        try {
-          gif.running = false;
-        } catch (e) {}
-        
-        gif.render();
-    } catch (err) {
-        console.error('GIF export error:', err);
-        alert('Error: ' + err.message); // This will pop up the exact error on your phone screen!
         isReplaying = false;
         if (replayBtn) replayBtn.disabled = false;
         if (exportBtn) exportBtn.disabled = false;
@@ -1083,7 +1011,6 @@
         console.error('Error loading GeoJSON:', err);
         document.getElementById('regionDetails').innerText = 'Failed to load spatial boundaries data.';
       });
-    
   </script>
 </body>
 </html>

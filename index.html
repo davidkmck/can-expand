@@ -466,7 +466,7 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
             actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
           }
         }
-      } 
+
       } else {
         let badgeColor = country.type === 'SOVEREIGN' ? getSovereignColor(country.key) : getFeatureColor(feature);
         

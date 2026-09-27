@@ -182,8 +182,8 @@ const captureFrame = async (isFinal = false) => {
         useCORS: true,
         scale: 1,
         backgroundColor: null,
-        width: originalWidth,
-        height: originalHeight,
+        width: targetWidth,   // Render small natively
+        height: targetHeight, // Render small natively
         windowWidth: originalWidth,
         windowHeight: originalHeight
       });

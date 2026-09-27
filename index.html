@@ -1238,21 +1238,57 @@
 
         listEl.innerHTML = '<li><em>Encoding multi-frame GIF...</em></li>';
 
-        // Mobile fallback: if it's mobile, bypass heavy multi-frame LZW compression and download the final state cleanly
-        if (isMobile) {
-          setTimeout(() => {
-            alert('Mobile GIF encoding complete!');
+
+        // Clear any old listeners to prevent duplicates
+        gif.removeAllListeners('finished');
+
+        gif.on('finished', function(blob) {
+          activeGif = null;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          
+          const now = new Date();
+          const timestamp = now.getFullYear().toString() +
+                            String(now.getMonth() + 1).padStart(2, '0') +
+                            String(now.getDate()).padStart(2, '0') + '-' +
+                            String(now.getHours()).padStart(2, '0') +
+                            String(now.getMinutes()).padStart(2, '0') +
+                            String(now.getSeconds()).padStart(2, '0');
+
+          const safeName = currentContinent.toLowerCase().replace(/\s+/g, '-');
+          a.download = `can-expand-${safeName}-${timestamp}.gif`;
+          
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          isReplaying = false;
+          if (replayBtn) replayBtn.disabled = false;
+          if (exportBtn) exportBtn.disabled = false;
+          if (continentSelect) continentSelect.disabled = false;
+          renderHistoryUI();
+        });
+
+        // Safeguard: If encoding takes longer than 15 seconds, force a completion fallback
+        const exportTimeout = setTimeout(() => {
+          if (isReplaying) {
+            console.warn('GIF encoding timed out, forcing reset...');
             isReplaying = false;
             if (replayBtn) replayBtn.disabled = false;
             if (exportBtn) exportBtn.disabled = false;
             if (continentSelect) continentSelect.disabled = false;
             renderHistoryUI();
-          }, 500);
-          
-          gif.render();
-        } else {
-          gif.render();
-        }
+            alert('GIF export timed out. Try recording fewer steps or a smaller region.');
+          }
+        }, 15000);
+
+        try {
+          gif.running = false;
+        } catch (e) {}
+        
+        gif.render();
 
         /*
         gif.on('finished', function(blob) {

@@ -162,9 +162,10 @@ async function exportGIF() {
     const targetWidth = Math.round(originalWidth * scaleFactor);
     const targetHeight = Math.round(originalHeight * scaleFactor);
 
-    activeGif = new GIF({
-      workers: 0, // isMobile ? 0 : 2,
-      quality: isMobile ? 40 : 80,
+activeGif = new GIF({
+      workers: 0,
+      quality: 10,       // Low number = skips heavy color-matching passes and encodes instantly
+      sampleInterval: 10, // Samples every 10th pixel to speed up quantization drastically
       width: targetWidth,
       height: targetHeight
     });

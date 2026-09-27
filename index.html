@@ -242,8 +242,8 @@
     const historyLog = [];
     let selectedFeature = null;
     let geojsonLayer = null;
-    let allGlobalFeatures = []; // Master list holding the full JSON data
-    let rawFeatures = [];       // Filtered list currently displayed
+    let allGlobalFeatures = []; 
+    let rawFeatures = [];       
     let isReplaying = false;
 
     const map = L.map('map', {
@@ -275,7 +275,7 @@
       ]
     };
 
-    // --- CONTINENT BOUNDS (Perfect framing for each region) ---
+    // --- CONTINENT BOUNDS ---
     const CONTINENT_BOUNDS = {
       "North America": [[14, -165], [75, -55]],
       "South America": [[-56, -82], [13, -34]],
@@ -364,7 +364,6 @@
           const featCenter = turf.centroid(feat);
           const dist = turf.distance(targetCenter, featCenter, { units: 'kilometers' });
           
-          // Allow reasonable proximity distance for neighboring and touching regions
           if (dist < maxDistance) {
             const neighborCountry = getCountryData(feat);
             if (neighborCountry.key !== currentCountry.key) {
@@ -405,58 +404,11 @@
 
       const formatName = (str) => str === 'United States of America' ? 'USA' : str;
 
-      /*
       if (isStandalone) {
         const color = getFeatureColor(feature);
         regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${color};">${country.name}</span>`;
 
-        const neighbors = getNeighboringEntities(feature, 2500, 99, true);
-        
-        if (neighbors.length > 0) {
-          neighbors.forEach(targetCountry => {
-            const btn = document.createElement('button');
-            btn.disabled = isReplaying;
-            btn.className = 'action-btn';
-            btn.style.background = getCountryColor(targetCountry);
-            const displayName = targetCountry.type === 'INDEPENDENT' ? targetCountry.name : targetCountry.key;
-            btn.innerText = `Join ${formatName(displayName)}`;
-            btn.onclick = () => changeStatus(feature, targetCountry);
-            actionsEl.appendChild(btn);
-          });
-        } else {
-          const distantNeighbors = getNeighboringEntities(feature, 4500, 4);
-
-          if (distantNeighbors.length > 0) {
-            const header = document.createElement('p');
-            header.style.cssText = 'font-size:0.8rem; font-weight:600; margin: 4px 0; color:#555;';
-            header.innerText = 'Diplomatic Reach (Island Transit):';
-            actionsEl.appendChild(header);
-
-            distantNeighbors.forEach(targetCountry => {
-              const btn = document.createElement('button');
-              btn.disabled = isReplaying;
-              btn.className = 'action-btn';
-              btn.style.background = getCountryColor(targetCountry);
-              const displayName = targetCountry.type === 'INDEPENDENT' ? targetCountry.name : targetCountry.key;
-              btn.innerText = `Join ${formatName(displayName)}`;
-              btn.onclick = () => changeStatus(feature, targetCountry);
-              actionsEl.appendChild(btn);
-            });
-          } else {
-            actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
-          }
-        }
-
-*/
-      if (isStandalone) {
-        const color = getFeatureColor(feature);
-        regionDetailsEl.innerHTML = `<span class="status-badge" style="background: ${color};">${country.name}</span>`;
-
-        // Check if the current feature is an island (surrounded by water / no land neighbors)
-        const immediateNeighbors = getNeighboringEntities(feature, 1500, 99, true);
-        const isIslandOrIsolated = immediateNeighbors.length === 0;
-
-        // 1. Standard immediate neighbors (touching borders)
+        // 1. Standard immediate bordering nations
         const neighbors = getNeighboringEntities(feature, 2500, 99, true);
         
         if (neighbors.length > 0) {
@@ -471,33 +423,41 @@
             actionsEl.appendChild(btn);
           });
         } 
-        // 2. Only allow long-distance / island transit options IF the region itself is an island/isolated!
-        else if (isIslandOrIsolated) {
-          const distantNeighbors = getNeighboringEntities(feature, 4500, 4);
 
-          if (distantNeighbors.length > 0) {
-            const header = document.createElement('p');
-            header.style.cssText = 'font-size:0.8rem; font-weight:600; margin: 4px 0; color:#555;';
-            header.innerText = 'Diplomatic Reach (Island Transit):';
-            actionsEl.appendChild(header);
+        // 2. Maritime / Nearby Island Transit
+        const nearbyEntities = getNeighboringEntities(feature, 2000, 5);
+        if (nearbyEntities.length > 0) {
+          const existingButtonTexts = Array.from(actionsEl.querySelectorAll('button')).map(b => b.innerText);
+          
+          let headerAdded = false;
+          nearbyEntities.forEach(targetCountry => {
+            const displayName = targetCountry.type === 'INDEPENDENT' ? targetCountry.name : targetCountry.key;
+            const buttonText = `Join ${formatName(displayName)}`;
+            
+            if (!existingButtonTexts.includes(buttonText)) {
+              if (!headerAdded && actionsEl.children.length > 1) {
+                const header = document.createElement('p');
+                header.style.cssText = 'font-size:0.8rem; font-weight:600; margin: 6px 0 2px 0; color:#555;';
+                header.innerText = 'Maritime / Nearby Transit:';
+                actionsEl.appendChild(header);
+                headerAdded = true;
+              }
 
-            distantNeighbors.forEach(targetCountry => {
               const btn = document.createElement('button');
               btn.disabled = isReplaying;
               btn.className = 'action-btn';
               btn.style.background = getCountryColor(targetCountry);
-              const displayName = targetCountry.type === 'INDEPENDENT' ? targetCountry.name : targetCountry.key;
-              btn.innerText = `Join ${formatName(displayName)}`;
+              btn.innerText = buttonText;
               btn.onclick = () => changeStatus(feature, targetCountry);
               actionsEl.appendChild(btn);
-            });
-          } else {
-            actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
-          }
-        } else {
-          actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No adjacent nations to join.</p>';
+            }
+          });
         }
-        
+
+        if (actionsEl.children.length === 0) {
+          actionsEl.innerHTML = '<p style="font-size:0.8rem; color:#888;">No available nations to join.</p>';
+        }
+
       } else {
         let badgeColor = country.type === 'SOVEREIGN' ? getSovereignColor(country.key) : getFeatureColor(feature);
         
@@ -725,8 +685,6 @@
       renderHistoryUI();
     }
 
-
-
     async function exportGIF() {
       if (isReplaying || historyLog.length === 0) return;
       
@@ -796,7 +754,6 @@
 
       currentBounds = map.getBounds();
 
-      const labelMarkers = symbol => [];
       let activeLabelMarkers = [];
       
       function refreshCountryLabels() {
@@ -813,7 +770,6 @@
             const coords = featCenter.geometry.coordinates;
             const latLng = L.latLng(coords[1], coords[0]);
             
-            // Only group features that fall *within* the visible GIF bounds
             if (currentBounds.contains(latLng)) {
               if (!countryGroups[groupKey]) {
                 countryGroups[groupKey] = {
@@ -958,7 +914,6 @@
 
       gif.render();
     }
-    
     
     // Initialize
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson') 

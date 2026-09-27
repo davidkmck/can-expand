@@ -739,8 +739,6 @@ if (changed) {
       renderHistoryUI(); // <--- Add this right at the end!
     }
 
-
-
 async function exportGIF() {
   if (isReplaying || historyLog.length === 0) return;
   
@@ -764,21 +762,38 @@ async function exportGIF() {
   if (exportBtn) exportBtn.disabled = true;
   if (continentSelect) continentSelect.disabled = true;
 
-  listEl.innerHTML = '<li><em>Preparing tight-crop frames...</em></li>';
+  listEl.innerHTML = '<li><em>Calculating focus frame...</em></li>';
 
   // 1. Fetch worker locally to bypass cross-origin restrictions
   const workerReq = await fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');
   const workerBlob = await workerReq.blob();
   const workerUrl = URL.createObjectURL(workerBlob);
 
-  // 2. Lock map view to continent bounds
-  const continentBounds = CONTINENT_BOUNDS[currentContinent];
-  if (continentBounds) {
-    map.fitBounds(continentBounds, { animate: false, padding: [20, 20] });
-  }
-  await new Promise(resolve => setTimeout(resolve, 350)); // Let map settle completely
+  // 2. Gather all features that were modified in this continent's history log
+  const changedFeatureIds = new Set(filteredLog.map(entry => entry.id).filter(Boolean));
+  const changedFeaturesList = rawFeatures.filter(f => changedFeatureIds.has(getFeatureId(f)));
 
-  // Target the SVG overlay pane where country shapes actually live (eliminates outer whitespace)
+  // 3. Zoom the map tightly to the bounding box of the changes (fallback to continent bounds if none found)
+  if (changedFeaturesList.length > 0) {
+    let combinedBounds = null;
+    changedFeaturesList.forEach(feat => {
+      const b = L.geoJSON(feat).getBounds();
+      if (!combinedBounds) {
+        combinedBounds = b;
+      } else {
+        combinedBounds.extend(b);
+      }
+    });
+    // Fit map to modified features with a clean padding
+    map.fitBounds(combinedBounds, { animate: false, padding: [40, 40] });
+  } else {
+    const continentBounds = CONTINENT_BOUNDS[currentContinent];
+    if (continentBounds) {
+      map.fitBounds(continentBounds, { animate: false, padding: [20, 20] });
+    }
+  }
+  await new Promise(resolve => setTimeout(resolve, 400)); // Let map settle completely
+
   const mapElement = document.getElementById('map');
   const targetPane = mapElement.querySelector('.leaflet-overlay-pane') || mapElement;
   
@@ -798,7 +813,7 @@ async function exportGIF() {
     height: targetHeight
   });
 
-  // 3. Backup current state and reset map for replay
+  // 4. Backup current state and reset map for replay
   const finalState = JSON.parse(JSON.stringify(stateStatus));
   for (let key in stateStatus) delete stateStatus[key];
   geojsonLayer.setStyle(style);
@@ -808,7 +823,7 @@ async function exportGIF() {
     const canvas = await html2canvas(targetPane, { 
       useCORS: true,
       scale: 1,
-      backgroundColor: null, // Transparent background so ocean looks clean
+      backgroundColor: null,
       width: originalWidth,
       height: originalHeight
     });
@@ -818,7 +833,6 @@ async function exportGIF() {
     resizeCanvas.height = targetHeight;
     const ctx = resizeCanvas.getContext('2d');
     
-    // Fill background color matching map theme (#aad3df) so transparent captures look great
     ctx.fillStyle = '#aad3df';
     ctx.fillRect(0, 0, targetWidth, targetHeight);
     ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
@@ -829,7 +843,7 @@ async function exportGIF() {
   // Capture initial base map frame
   await captureFrame();
 
-  // 4. Step through history cleanly
+  // 5. Step through history cleanly
   for (let i = 0; i < historyLog.length; i++) {
     const entry = historyLog[i];
 
@@ -852,17 +866,19 @@ async function exportGIF() {
     }
   }
 
-  // 5. Restore original state
+  // 6. Restore original state
   Object.assign(stateStatus, finalState);
   geojsonLayer.setStyle(style);
   
-  if (continentBounds) {
-    map.fitBounds(continentBounds, { animate: false, padding: [20, 20] });
+  // Reset map back to standard continent bounds view
+  const defaultBounds = CONTINENT_BOUNDS[currentContinent];
+  if (defaultBounds) {
+    map.fitBounds(defaultBounds, { animate: false, padding: [20, 20] });
   }
 
-  listEl.innerHTML = '<li><em>Processing tight-crop GIF...</em></li>';
+  listEl.innerHTML = '<li><em>Processing focused GIF...</em></li>';
 
-  // 6. Render, timestamp, and download
+  // 7. Render, timestamp, and download
   gif.on('finished', function(blob) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

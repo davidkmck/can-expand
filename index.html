@@ -532,38 +532,64 @@ function getNeighboringEntities(targetFeature, maxDistance = 1000, limit = 99, r
       listEl.scrollTop = listEl.scrollHeight;
     }
 
-    function animateHistory() {
-      if (historyLog.length === 0 || isReplaying) return;
+    async function animateHistory() {
+  if (isReplaying || historyLog.length === 0) return;
+  isReplaying = true;
+  closeInfoPanel();
 
-      isReplaying = true;
-      document.getElementById('replayBtn').disabled = true;
+  const replayBtn = document.getElementById('replayBtn');
+  const continentSelect = document.getElementById('continentSelect');
+  if (replayBtn) replayBtn.disabled = true;
+  if (continentSelect) continentSelect.disabled = true;
 
-      // Reset visually
-      Object.keys(stateStatus).forEach(key => delete stateStatus[key]);
-      geojsonLayer.setStyle(style);
+  // 1. Create a Set of IDs for the regions currently visible on the map
+  const currentContinentIds = new Set(rawFeatures.map(feat => getFeatureId(feat)));
 
-      let step = 0;
-      const interval = setInterval(() => {
-        if (step >= historyLog.length) {
-          clearInterval(interval);
-          isReplaying = false;
-          document.getElementById('replayBtn').disabled = false;
-          // Re-apply correct state memory
-          historyLog.forEach(entry => stateStatus[entry.id] = entry.targetCountryObj);
-          geojsonLayer.setStyle(style);
-          if (selectedFeature) updatePanel(selectedFeature);
-          return;
+  // 2. Backup current state and clear it for the replay
+  const finalState = JSON.parse(JSON.stringify(stateStatus));
+  for (let key in stateStatus) delete stateStatus[key];
+  geojsonLayer.setStyle(style);
+
+  // 3. Loop through the history log
+  for (let i = 0; i < historyLog.length; i++) {
+    const entry = historyLog[i];
+    let isVisible = false;
+
+    // Check action type, apply to state, and check if it's visible on the current map
+    if (entry.action === 'RENAME') {
+        // If renaming, check if any feature on the screen shares the old or new name
+        isVisible = rawFeatures.some(f => getCountryData(f).key === entry.from || getCountryData(f).key === entry.to);
+        
+        for (let id in stateStatus) {
+            if (stateStatus[id].key === entry.from) {
+                stateStatus[id].key = entry.to;
+                stateStatus[id].name = entry.to;
+            }
         }
-
-        const entry = historyLog[step];
-        const feat = rawFeatures.find(f => getFeatureId(f) === entry.id);
-        if (feat) {
-          stateStatus[getFeatureId(feat)] = entry.targetCountryObj;
-          changeStatus(feat, entry.targetCountryObj, false);
-        }
-        step++;
-      }, 1000);
+    } else {
+        // For standard Annexations or Declarations of Independence
+        // Update these keys if your history array uses different names (e.g., entry.featureId, entry.newStatus)
+        stateStatus[entry.id] = entry.status; 
+        
+        // It's visible if the ID belongs to the current continent
+        isVisible = currentContinentIds.has(entry.id);
     }
+
+    // 4. Only pause and redraw if the change happened on the current continent
+    if (isVisible) {
+      geojsonLayer.setStyle(style);
+      await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay per frame
+    }
+  }
+
+  // Restore final state just in case and re-enable UI
+  Object.assign(stateStatus, finalState);
+  geojsonLayer.setStyle(style);
+  
+  isReplaying = false;
+  if (replayBtn) replayBtn.disabled = false;
+  if (continentSelect) continentSelect.disabled = false;
+}
 
     function onEachFeature(feature, layer) {
       layer.on({

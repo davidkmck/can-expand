@@ -5,7 +5,8 @@ const ASSETS_TO_CACHE = [
   './manifest.json',
   './icon-192.png',
   './icon.png',
-  './export2.js',
+  './gif.worker.js',
+  './export.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/@turf/turf@6.5.0/turf.min.js'

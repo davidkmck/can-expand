@@ -29,7 +29,7 @@ async function exportGIF() {
   listEl.innerHTML = '<li><em>Preparing animation frames...</em></li>';
 
   let exportTimeout = null;
-  let activeLabelMarkers = [];
+  let currentLabels = [];
   let finalState = null;
   let stateWiped = false;
 
@@ -93,9 +93,10 @@ async function exportGIF() {
       return centroidCache.get(id);
     }
 
+    // Builds a plain list of labels; they are drawn straight onto each
+    // frame's canvas (crisp text) instead of using Leaflet markers + html2canvas.
     function refreshCountryLabels() {
-      activeLabelMarkers.forEach(m => map.removeLayer(m));
-      activeLabelMarkers = [];
+      currentLabels = [];
 
       const countryGroups = {};
       rawFeatures.forEach(feat => {
@@ -119,28 +120,43 @@ async function exportGIF() {
         }
       });
 
-      Object.entries(countryGroups).forEach(([groupKey, group]) => {
+      Object.values(countryGroups).forEach(group => {
         try {
-          const turfCollection = turf.featureCollection(group.features);
-          const center = turf.centerOfMass(turfCollection);
+          const center = turf.centerOfMass(turf.featureCollection(group.features));
           const coords = center.geometry.coordinates;
-
-          const featureCount = group.features.length;
-          const isMegaNation = featureCount > 10;
-          const isMediumNation = featureCount > 3;
-          const fontSize = isMegaNation ? 24 : (isMediumNation ? 18 : 14);
-          const anchorOffset = Math.round(fontSize * 3.5);
-
-          const labelIcon = L.divIcon({
-            className: 'gif-country-label',
-            html: `<div style="background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: ${fontSize}px; font-weight: 800; color: #111111; text-align: center; white-space: nowrap; text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff, 0 2px 5px rgba(0,0,0,0.3); pointer-events: none; letter-spacing: 0.5px;">${group.name}</div>`,
-            iconSize: [fontSize * 8, fontSize * 1.6],
-            iconAnchor: [anchorOffset, fontSize * 0.8]
+          const n = group.features.length;
+          currentLabels.push({
+            text: group.name,
+            latLng: L.latLng(coords[1], coords[0]),
+            size: n > 10 ? 'large' : (n > 3 ? 'medium' : 'small')
           });
-
-          const marker = L.marker([coords[1], coords[0]], { icon: labelIcon }).addTo(map);
-          activeLabelMarkers.push(marker);
         } catch (e) {}
+      });
+    }
+
+    function drawLabels(ctx, scale, targetWidth) {
+      // Font sizes are in final-GIF pixels so they stay readable after downscaling
+      const uiScale = Math.max(0.6, targetWidth / 500);
+      const sizes = { large: 17, medium: 14, small: 12 };
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
+
+      currentLabels.forEach(label => {
+        const fs = Math.round(sizes[label.size] * uiScale);
+        const pt = map.latLngToContainerPoint(label.latLng);
+        const x = pt.x * scale;
+        const y = pt.y * scale;
+        if (x < 0 || y < 0 || x > ctx.canvas.width || y > ctx.canvas.height) return;
+
+        ctx.font = `800 ${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+        ctx.lineWidth = Math.max(3, fs * 0.28);
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeText(label.text, x, y);
+        ctx.fillStyle = '#000000';
+        ctx.fillText(label.text, x, y);
       });
     }
 
@@ -158,7 +174,7 @@ async function exportGIF() {
     const gif = new GIF({
       workers: 2,
       workerScript: './gif.worker.js',
-      quality: 20,        // higher = faster, coarser colors
+      quality: 10,        // lower = better color/text fidelity (slower)
       dither: false,
       width: targetWidth,
       height: targetHeight
@@ -181,7 +197,10 @@ async function exportGIF() {
 
       ctx.fillStyle = '#aad3df';
       ctx.fillRect(0, 0, targetWidth, targetHeight);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
+      drawLabels(ctx, scaleFactor, targetWidth);
 
       const frameDelay = isFinal ? 2500 : 900;
       gif.addFrame(resizeCanvas, { delay: frameDelay, copy: true });
@@ -224,8 +243,7 @@ async function exportGIF() {
 
       await captureFrame(true);
     } finally {
-      activeLabelMarkers.forEach(m => map.removeLayer(m));
-      activeLabelMarkers = [];
+      currentLabels = [];
       if (stateWiped) {
         for (let key in stateStatus) delete stateStatus[key];
         Object.assign(stateStatus, finalState);

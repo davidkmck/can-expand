@@ -95,6 +95,10 @@ async function exportGIF() {
 
     // Builds a plain list of labels; they are drawn straight onto each
     // frame's canvas (crisp text) instead of using Leaflet markers + html2canvas.
+    // Large countries keep their label position for the whole animation
+    const lockedCenters = new Map();
+    const LARGE_THRESHOLD = 10;
+
     function refreshCountryLabels() {
       currentLabels = [];
 
@@ -120,15 +124,23 @@ async function exportGIF() {
         }
       });
 
-      Object.values(countryGroups).forEach(group => {
+      Object.entries(countryGroups).forEach(([groupKey, group]) => {
         try {
-          const center = turf.centerOfMass(turf.featureCollection(group.features));
-          const coords = center.geometry.coordinates;
           const n = group.features.length;
+          let latLng = lockedCenters.get(groupKey);
+
+          if (!latLng) {
+            const center = turf.centerOfMass(turf.featureCollection(group.features));
+            const coords = center.geometry.coordinates;
+            latLng = L.latLng(coords[1], coords[0]);
+            // Lock the position once a country is large so it never drifts
+            if (n > LARGE_THRESHOLD) lockedCenters.set(groupKey, latLng);
+          }
+
           currentLabels.push({
             text: group.name,
-            latLng: L.latLng(coords[1], coords[0]),
-            size: n > 10 ? 'large' : (n > 3 ? 'medium' : 'small')
+            latLng,
+            size: n > LARGE_THRESHOLD ? 'large' : (n > 3 ? 'medium' : 'small')
           });
         } catch (e) {}
       });

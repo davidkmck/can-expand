@@ -64,9 +64,8 @@ async function exportGIF() {
       } catch (e) {}
     });
 
- if (currentBounds && currentBounds.isValid()) {
-        map.fitBounds(currentBounds, { animate: false, padding: [10, 10] });
-        map.setZoom(map.getZoom() + 1);
+if (currentBounds && currentBounds.isValid()) {
+        map.fitBounds(currentBounds, { animate: false, padding: [5, 5] });
     } else {
       const continentBounds = CONTINENT_BOUNDS[currentContinent];
       if (continentBounds) {

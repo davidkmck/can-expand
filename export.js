@@ -110,9 +110,18 @@ if (currentBounds && currentBounds.isValid()) {
         const isBaselineMajor = (groupKey === 'Canada' || groupKey === 'United States of America' || groupKey === 'Mexico');
         if (isBaselineMajor || everActiveKeys.has(groupKey) || everActiveKeys.has(data.name)) {
           try {
+            /*
             const latLng = getCachedCentroid(feat);
             if (currentBounds.contains(latLng)) {
               if (!countryGroups[groupKey]) {
+*/
+
+            const latLng = getCachedCentroid(feat);
+                        // Search outside the visible frame so labels don't disappear when states flip
+                        if (currentBounds.pad(1.5).contains(latLng)) {
+                            if (!countryGroups[groupKey]) {
+
+                
                 countryGroups[groupKey] = {
                   name: data.name === 'United States of America' ? 'USA' : data.name,
                   features: []
@@ -158,12 +167,26 @@ if (currentBounds && currentBounds.isValid()) {
 
       currentLabels.forEach(label => {
         const fs = Math.round(sizes[label.size] * uiScale);
+        /*
         const pt = map.latLngToContainerPoint(label.latLng);
         const x = pt.x * scale;
         const y = pt.y * scale;
         if (x < 0 || y < 0 || x > ctx.canvas.width || y > ctx.canvas.height) return;
 
         ctx.font = `800 ${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+        */
+
+        const pt = map.latLngToContainerPoint(label.latLng);
+            let x = pt.x * scale;
+            let y = pt.y * scale;
+
+            // Keep labels from vanishing by clamping them to the edges of the GIF
+            const margin = fs * 2;
+            x = Math.max(margin, Math.min(ctx.canvas.width - margin, x));
+            y = Math.max(margin, Math.min(ctx.canvas.height - margin, y));
+
+            ctx.font = `800 ${fs}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+        
         ctx.lineWidth = Math.max(3, fs * 0.28);
         ctx.strokeStyle = '#ffffff';
         ctx.strokeText(label.text, x, y);

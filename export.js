@@ -200,7 +200,12 @@ if (currentBounds && currentBounds.isValid()) {
     const originalWidth = mapElement.offsetWidth;
     const originalHeight = mapElement.offsetHeight;
 
-    const maxDimension = isMobile ? 280 : 500;
+    //const maxDimension = isMobile ? 280 : 500;
+
+    // const maxDimension = isMobile ? 500 : 1000; // Increased for much higher resolution
+
+    const maxDimension = isMobile ? 350 : 750;
+    
     const scaleFactor = Math.min(1, maxDimension / originalWidth);
     const targetWidth = Math.round(originalWidth * scaleFactor);
     const targetHeight = Math.round(originalHeight * scaleFactor);
@@ -209,7 +214,7 @@ if (currentBounds && currentBounds.isValid()) {
     const gif = new GIF({
       workers: 2,
       workerScript: './gif.worker.js',
-      quality: 10,        // lower = better color/text fidelity (slower)
+      quality: 5,        // lower = better color/text fidelity (slower)
       dither: false,
       width: targetWidth,
       height: targetHeight
